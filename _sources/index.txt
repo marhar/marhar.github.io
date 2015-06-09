@@ -14,16 +14,17 @@ I generally take lots of notes when I'm learning something, you can
 consider it an ongoing journal of my ignorance!
 
 This incarnation is a sphinx document hosted on Github Pages.
-Is that the right way to do things?  Ping me if you know something
-better!
+Is that the right way to do things?  Got a better way?  I'd
+like to hear about it.
 
-Mark Harrison
-marhar@gmail.com
-mh@pixar.com
-https://github.com/marhar
-http://stackoverflow.com/users/116/mark-harrison
-http://eastbay-rc.blogspot.com
-http://codehaus.blogspot.com
+| Mark Harrison
+| marhar@gmail.com
+| mh@pixar.com
+| https://github.com/marhar
+| http://stackoverflow.com/users/116/mark-harrison
+| http://codehaus.blogspot.com
+| http://eastbay-rc.blogspot.com
+|
 
 Contents:
 
