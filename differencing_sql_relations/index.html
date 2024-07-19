@@ -1,0 +1,290 @@
+<!doctype html>
+<html lang="en">
+  <head>
+
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+Mono:wght@400;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans:wght@400;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=EB+Garamond:ital,wght@0,400..800;1,400..800&display=swap" rel="stylesheet">
+
+
+
+
+    <meta http-equiv="X-Clacks-Overhead" content="GNU Terry Pratchett" />
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <link rel="shortcut icon" href="/images/favicon.png" />
+
+<title>Differencing SQL Relationships&nbsp;|&nbsp;Mark Harrison&#39;s Blog</title>
+<meta
+  name="title"
+  content="Differencing SQL Relationships"
+/>
+<meta
+  name="description"
+  content="Calculating inserted, deleted, modified, unmodified rows."
+/>
+<meta
+  name="keywords"
+  content="sql,duckdb,relational algebra,"
+/>
+
+  <meta name="author" content="Mark Harrison" />
+
+
+
+
+<meta property="og:url" content="https://marhar.github.io/differencing_sql_relations/">
+  <meta property="og:site_name" content="Mark Harrison&#39;s Blog">
+  <meta property="og:title" content="Differencing SQL Relationships">
+  <meta property="og:description" content="Calculating inserted, deleted, modified, unmodified rows.">
+  <meta property="og:locale" content="en">
+  <meta property="og:type" content="article">
+    <meta property="article:section" content="blog">
+    <meta property="article:published_time" content="2024-07-18T00:00:00+00:00">
+    <meta property="article:modified_time" content="2024-07-18T00:00:00+00:00">
+    <meta property="article:tag" content="sql">
+    <meta property="article:tag" content="duckdb">
+    <meta property="article:tag" content="relational algebra">
+
+
+
+
+
+  <meta name="twitter:card" content="summary">
+  <meta name="twitter:title" content="Differencing SQL Relationships">
+  <meta name="twitter:description" content="Calculating inserted, deleted, modified, unmodified rows.">
+
+
+
+
+
+  <meta itemprop="name" content="Differencing SQL Relationships">
+  <meta itemprop="description" content="Calculating inserted, deleted, modified, unmodified rows.">
+  <meta itemprop="datePublished" content="2024-07-18T00:00:00+00:00">
+  <meta itemprop="dateModified" content="2024-07-18T00:00:00+00:00">
+  <meta itemprop="wordCount" content="509">
+  <meta itemprop="keywords" content="sql,duckdb,relational algebra">
+<meta name="referrer" content="no-referrer-when-downgrade" />
+
+    
+    <link href="/simple.min.css" rel="stylesheet" />
+
+    
+    <link href="/style.min.css" rel="stylesheet" />
+
+    
+
+    
+</head>
+
+  <body>
+    <header>
+
+
+    
+      <img width="720" src="/differencing_sql_relations/headerimage.webp" alt="Header Image">
+    
+
+
+
+
+      <nav>
+  <a
+    href="/"
+    
+    >Home</a
+  >
+
+  <a
+    href="/blog/"
+    
+    >Blog</a
+  >
+
+
+  <a href="/index.xml">
+    <svg xmlns="http://www.w3.org/2000/svg" class="icon" viewBox="0 0 448 512">
+      
+      <path
+        d="M0 64C0 46.3 14.3 32 32 32c229.8 0 416 186.2 416 416c0 17.7-14.3 32-32 32s-32-14.3-32-32C384 253.6 226.4 96 32 96C14.3 96 0 81.7 0 64zM0 416a64 64 0 1 1 128 0A64 64 0 1 1 0 416zM32 160c159.1 0 288 128.9 288 288c0 17.7-14.3 32-32 32s-32-14.3-32-32c0-123.7-100.3-224-224-224c-17.7 0-32-14.3-32-32s14.3-32 32-32z"
+      />
+    </svg>
+    RSS
+  </a>
+
+</nav>
+
+<h1>Differencing SQL Relationships</h1>
+
+  <p>Calculating inserted, deleted, modified, unmodified rows.</p>
+
+
+    </header>
+    <main>
+      
+  
+    
+      
+      <p>
+        <i>
+          <time datetime="2024-07-18" pubdate>
+            2024-07-18
+          </time>
+        </i>
+      </p>
+    
+  
+  
+  <content>
+    <p>When differencing two relationships A and B, there are four cases to consider.</p>
+<ul>
+<li>inserted &ndash; the row exists in B but not in A.</li>
+<li>deleted &ndash; the row exists in A but not in B.</li>
+<li>unmodified &ndash; the row exists in both, and the data is the same.</li>
+<li>modified &ndash; the row exists in both, and the data is different.</li>
+</ul>
+<p>Note we define &ldquo;existing&rdquo; as &ldquo;the key appears in the table&rdquo;.</p>
+<p><img src="venn-dark-bg.png" alt="Venn Diagram"></p>
+<p>Here&rsquo;s the SQL incantations for each of these. We&rsquo;ll create two rows for
+each of the cases.</p>
+
+
+
+
+
+
+<div class="highlight"><pre tabindex="0" style="color:#cdd6f4;background-color:#1e1e2e;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-sql" data-lang="sql"><span style="display:flex;"><span><span style="color:#cba6f7">CREATE</span> <span style="color:#cba6f7">TABLE</span> A(<span style="color:#cba6f7">key</span> <span style="color:#89dceb">text</span>, val <span style="color:#89dceb">int</span>);
+</span></span><span style="display:flex;"><span><span style="color:#cba6f7">CREATE</span> <span style="color:#cba6f7">TABLE</span> B(<span style="color:#cba6f7">key</span> <span style="color:#89dceb">text</span>, val <span style="color:#89dceb">int</span>);
+</span></span><span style="display:flex;"><span><span style="color:#cba6f7">insert</span> <span style="color:#cba6f7">into</span> a(<span style="color:#cba6f7">key</span>, val) <span style="color:#cba6f7">values</span> (<span style="color:#a6e3a1">&#39;a&#39;</span>,<span style="color:#fab387">1</span>),(<span style="color:#a6e3a1">&#39;b&#39;</span>,<span style="color:#fab387">2</span>),(<span style="color:#a6e3a1">&#39;c&#39;</span>,<span style="color:#fab387">3</span>),(<span style="color:#a6e3a1">&#39;w&#39;</span>,<span style="color:#fab387">11</span>),(<span style="color:#a6e3a1">&#39;x&#39;</span>,<span style="color:#fab387">22</span>),(<span style="color:#a6e3a1">&#39;y&#39;</span>,<span style="color:#fab387">33</span>);
+</span></span><span style="display:flex;"><span><span style="color:#cba6f7">insert</span> <span style="color:#cba6f7">into</span> b(<span style="color:#cba6f7">key</span>, val) <span style="color:#cba6f7">values</span> (<span style="color:#a6e3a1">&#39;a&#39;</span>,<span style="color:#fab387">9</span>),(<span style="color:#a6e3a1">&#39;c&#39;</span>,<span style="color:#fab387">3</span>),(<span style="color:#a6e3a1">&#39;d&#39;</span>,<span style="color:#fab387">4</span>),(<span style="color:#a6e3a1">&#39;w&#39;</span>,<span style="color:#fab387">55</span>),(<span style="color:#a6e3a1">&#39;y&#39;</span>,<span style="color:#fab387">33</span>),(<span style="color:#a6e3a1">&#39;z&#39;</span>,<span style="color:#fab387">44</span>);</span></span></code></pre></div>
+<p>Inserted and Deleted rows use almost the same SQL, just reversing the sense of the
+LEFT JOIN and RIGHT JOIN.</p>
+
+
+
+
+
+
+<div class="highlight"><pre tabindex="0" style="color:#cdd6f4;background-color:#1e1e2e;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-sql" data-lang="sql"><span style="display:flex;"><span><span style="color:#6c7086;font-style:italic">-- Deleted
+</span></span></span><span style="display:flex;"><span><span style="color:#6c7086;font-style:italic"></span><span style="color:#cba6f7">select</span> a.<span style="color:#cba6f7">key</span>, a.val <span style="color:#cba6f7">from</span> a <span style="color:#cba6f7">left</span> <span style="color:#cba6f7">join</span> b <span style="color:#cba6f7">on</span> a.<span style="color:#cba6f7">key</span> <span style="color:#89dceb;font-weight:bold">=</span> b.<span style="color:#cba6f7">key</span> <span style="color:#cba6f7">where</span> b.<span style="color:#cba6f7">key</span> <span style="color:#cba6f7">is</span> <span style="color:#cba6f7">null</span>;
+</span></span><span style="display:flex;"><span><span style="color:#f38ba8">┌─────────┬───────┐</span>
+</span></span><span style="display:flex;"><span><span style="color:#f38ba8">│</span>   <span style="color:#cba6f7">key</span>   <span style="color:#f38ba8">│</span>  val  <span style="color:#f38ba8">│</span>
+</span></span><span style="display:flex;"><span><span style="color:#f38ba8">│</span> <span style="color:#89dceb">varchar</span> <span style="color:#f38ba8">│</span> int32 <span style="color:#f38ba8">│</span>
+</span></span><span style="display:flex;"><span><span style="color:#f38ba8">├─────────┼───────┤</span>
+</span></span><span style="display:flex;"><span><span style="color:#f38ba8">│</span> b       <span style="color:#f38ba8">│</span>     <span style="color:#fab387">2</span> <span style="color:#f38ba8">│</span>
+</span></span><span style="display:flex;"><span><span style="color:#f38ba8">│</span> x       <span style="color:#f38ba8">│</span>    <span style="color:#fab387">22</span> <span style="color:#f38ba8">│</span>
+</span></span><span style="display:flex;"><span><span style="color:#f38ba8">└─────────┴───────┘</span>
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span><span style="color:#6c7086;font-style:italic">-- Inserted
+</span></span></span><span style="display:flex;"><span><span style="color:#6c7086;font-style:italic"></span><span style="color:#cba6f7">select</span> b.<span style="color:#cba6f7">key</span>, b.val <span style="color:#cba6f7">from</span> a <span style="color:#cba6f7">right</span> <span style="color:#cba6f7">join</span> b <span style="color:#cba6f7">on</span> a.<span style="color:#cba6f7">key</span> <span style="color:#89dceb;font-weight:bold">=</span> b.<span style="color:#cba6f7">key</span> <span style="color:#cba6f7">where</span> a.<span style="color:#cba6f7">key</span> <span style="color:#cba6f7">is</span> <span style="color:#cba6f7">null</span>;
+</span></span><span style="display:flex;"><span><span style="color:#f38ba8">┌─────────┬───────┐</span>
+</span></span><span style="display:flex;"><span><span style="color:#f38ba8">│</span>   <span style="color:#cba6f7">key</span>   <span style="color:#f38ba8">│</span>  val  <span style="color:#f38ba8">│</span>
+</span></span><span style="display:flex;"><span><span style="color:#f38ba8">│</span> <span style="color:#89dceb">varchar</span> <span style="color:#f38ba8">│</span> int32 <span style="color:#f38ba8">│</span>
+</span></span><span style="display:flex;"><span><span style="color:#f38ba8">├─────────┼───────┤</span>
+</span></span><span style="display:flex;"><span><span style="color:#f38ba8">│</span> d       <span style="color:#f38ba8">│</span>     <span style="color:#fab387">4</span> <span style="color:#f38ba8">│</span>
+</span></span><span style="display:flex;"><span><span style="color:#f38ba8">│</span> z       <span style="color:#f38ba8">│</span>    <span style="color:#fab387">44</span> <span style="color:#f38ba8">│</span>
+</span></span><span style="display:flex;"><span><span style="color:#f38ba8">└─────────┴───────┘</span></span></span></code></pre></div>
+<p>Likewise, modified and unmodified rows are similar:  an inner joint, but differing
+only on the equality check in the WHERE clause.</p>
+
+
+
+
+
+
+<div class="highlight"><pre tabindex="0" style="color:#cdd6f4;background-color:#1e1e2e;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-sql" data-lang="sql"><span style="display:flex;"><span><span style="color:#6c7086;font-style:italic">-- Unmodified Rows
+</span></span></span><span style="display:flex;"><span><span style="color:#6c7086;font-style:italic"></span><span style="color:#cba6f7">select</span> a.<span style="color:#cba6f7">key</span>, a.val <span style="color:#cba6f7">from</span> a <span style="color:#cba6f7">inner</span> <span style="color:#cba6f7">join</span> b <span style="color:#cba6f7">on</span> a.<span style="color:#cba6f7">key</span><span style="color:#89dceb;font-weight:bold">=</span>b.<span style="color:#cba6f7">key</span> <span style="color:#cba6f7">where</span> a.val <span style="color:#89dceb;font-weight:bold">=</span> b.val;
+</span></span><span style="display:flex;"><span><span style="color:#f38ba8">┌─────────┬───────┐</span>
+</span></span><span style="display:flex;"><span><span style="color:#f38ba8">│</span>   <span style="color:#cba6f7">key</span>   <span style="color:#f38ba8">│</span>  val  <span style="color:#f38ba8">│</span>
+</span></span><span style="display:flex;"><span><span style="color:#f38ba8">│</span> <span style="color:#89dceb">varchar</span> <span style="color:#f38ba8">│</span> int32 <span style="color:#f38ba8">│</span>
+</span></span><span style="display:flex;"><span><span style="color:#f38ba8">├─────────┼───────┤</span>
+</span></span><span style="display:flex;"><span><span style="color:#f38ba8">│</span> <span style="color:#cba6f7">c</span>       <span style="color:#f38ba8">│</span>     <span style="color:#fab387">3</span> <span style="color:#f38ba8">│</span>
+</span></span><span style="display:flex;"><span><span style="color:#f38ba8">│</span> y       <span style="color:#f38ba8">│</span>    <span style="color:#fab387">33</span> <span style="color:#f38ba8">│</span>
+</span></span><span style="display:flex;"><span><span style="color:#f38ba8">└─────────┴───────┘</span>
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span><span style="color:#6c7086;font-style:italic">-- Modified Rows
+</span></span></span><span style="display:flex;"><span><span style="color:#6c7086;font-style:italic"></span><span style="color:#cba6f7">select</span> b.<span style="color:#cba6f7">key</span>, b.val <span style="color:#cba6f7">from</span> a <span style="color:#cba6f7">inner</span> <span style="color:#cba6f7">join</span> b <span style="color:#cba6f7">on</span> a.<span style="color:#cba6f7">key</span><span style="color:#89dceb;font-weight:bold">=</span>b.<span style="color:#cba6f7">key</span> <span style="color:#cba6f7">where</span> a.val <span style="color:#89dceb;font-weight:bold">&lt;&gt;</span> b.val;
+</span></span><span style="display:flex;"><span><span style="color:#f38ba8">┌─────────┬───────┐</span>
+</span></span><span style="display:flex;"><span><span style="color:#f38ba8">│</span>   <span style="color:#cba6f7">key</span>   <span style="color:#f38ba8">│</span>  val  <span style="color:#f38ba8">│</span>
+</span></span><span style="display:flex;"><span><span style="color:#f38ba8">│</span> <span style="color:#89dceb">varchar</span> <span style="color:#f38ba8">│</span> int32 <span style="color:#f38ba8">│</span>
+</span></span><span style="display:flex;"><span><span style="color:#f38ba8">├─────────┼───────┤</span>
+</span></span><span style="display:flex;"><span><span style="color:#f38ba8">│</span> a       <span style="color:#f38ba8">│</span>     <span style="color:#fab387">9</span> <span style="color:#f38ba8">│</span>
+</span></span><span style="display:flex;"><span><span style="color:#f38ba8">│</span> w       <span style="color:#f38ba8">│</span>    <span style="color:#fab387">55</span> <span style="color:#f38ba8">│</span>
+</span></span><span style="display:flex;"><span><span style="color:#f38ba8">└─────────┴───────┘</span></span></span></code></pre></div>
+<p>We can also combine and process all four cases as an OUTER JOIN.</p>
+
+
+
+
+
+
+<div class="highlight"><pre tabindex="0" style="color:#cdd6f4;background-color:#1e1e2e;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-sql" data-lang="sql"><span style="display:flex;"><span><span style="color:#6c7086;font-style:italic">-- All cases in one statement.
+</span></span></span><span style="display:flex;"><span><span style="color:#6c7086;font-style:italic"></span><span style="color:#cba6f7">SELECT</span> 
+</span></span><span style="display:flex;"><span>    <span style="color:#cba6f7">CASE</span> 
+</span></span><span style="display:flex;"><span>        <span style="color:#cba6f7">WHEN</span> a.val <span style="color:#89dceb;font-weight:bold">&lt;&gt;</span> b.val <span style="color:#cba6f7">THEN</span> <span style="color:#a6e3a1">&#39;modified&#39;</span>
+</span></span><span style="display:flex;"><span>        <span style="color:#cba6f7">WHEN</span> b.<span style="color:#cba6f7">key</span> <span style="color:#cba6f7">IS</span> <span style="color:#cba6f7">NULL</span> <span style="color:#cba6f7">THEN</span>  <span style="color:#a6e3a1">&#39;deleted&#39;</span>
+</span></span><span style="display:flex;"><span>        <span style="color:#cba6f7">WHEN</span> a.val <span style="color:#89dceb;font-weight:bold">=</span> b.val <span style="color:#cba6f7">THEN</span>  <span style="color:#a6e3a1">&#39;unmodified&#39;</span>
+</span></span><span style="display:flex;"><span>        <span style="color:#cba6f7">ELSE</span>                     <span style="color:#a6e3a1">&#39;inserted&#39;</span>
+</span></span><span style="display:flex;"><span>    <span style="color:#cba6f7">END</span> <span style="color:#cba6f7">AS</span> <span style="color:#cba6f7">operation</span>,
+</span></span><span style="display:flex;"><span>    COALESCE(a.<span style="color:#cba6f7">key</span>, b.<span style="color:#cba6f7">key</span>) <span style="color:#cba6f7">AS</span> <span style="color:#cba6f7">key</span>,
+</span></span><span style="display:flex;"><span>    a.val <span style="color:#cba6f7">AS</span> a_val,
+</span></span><span style="display:flex;"><span>    b.val <span style="color:#cba6f7">AS</span> b_val
+</span></span><span style="display:flex;"><span><span style="color:#cba6f7">FROM</span> 
+</span></span><span style="display:flex;"><span>    a
+</span></span><span style="display:flex;"><span><span style="color:#cba6f7">FULL</span> <span style="color:#cba6f7">OUTER</span> <span style="color:#cba6f7">JOIN</span> 
+</span></span><span style="display:flex;"><span>    b <span style="color:#cba6f7">ON</span> a.<span style="color:#cba6f7">key</span> <span style="color:#89dceb;font-weight:bold">=</span> b.<span style="color:#cba6f7">key</span>
+</span></span><span style="display:flex;"><span><span style="color:#cba6f7">ORDER</span> <span style="color:#cba6f7">BY</span> 
+</span></span><span style="display:flex;"><span>    COALESCE(a.<span style="color:#cba6f7">key</span>, b.<span style="color:#cba6f7">key</span>);
+</span></span><span style="display:flex;"><span><span style="color:#f38ba8">┌────────────┬─────────┬───────┬───────┐</span>
+</span></span><span style="display:flex;"><span><span style="color:#f38ba8">│</span> <span style="color:#cba6f7">operation</span>  <span style="color:#f38ba8">│</span>   <span style="color:#cba6f7">key</span>   <span style="color:#f38ba8">│</span> a_val <span style="color:#f38ba8">│</span> b_val <span style="color:#f38ba8">│</span>
+</span></span><span style="display:flex;"><span><span style="color:#f38ba8">│</span>  <span style="color:#89dceb">varchar</span>   <span style="color:#f38ba8">│</span> <span style="color:#89dceb">varchar</span> <span style="color:#f38ba8">│</span> int32 <span style="color:#f38ba8">│</span> int32 <span style="color:#f38ba8">│</span>
+</span></span><span style="display:flex;"><span><span style="color:#f38ba8">├────────────┼─────────┼───────┼───────┤</span>
+</span></span><span style="display:flex;"><span><span style="color:#f38ba8">│</span> modified   <span style="color:#f38ba8">│</span> a       <span style="color:#f38ba8">│</span>     <span style="color:#fab387">1</span> <span style="color:#f38ba8">│</span>     <span style="color:#fab387">9</span> <span style="color:#f38ba8">│</span>
+</span></span><span style="display:flex;"><span><span style="color:#f38ba8">│</span> deleted    <span style="color:#f38ba8">│</span> b       <span style="color:#f38ba8">│</span>     <span style="color:#fab387">2</span> <span style="color:#f38ba8">│</span>       <span style="color:#f38ba8">│</span>
+</span></span><span style="display:flex;"><span><span style="color:#f38ba8">│</span> unmodified <span style="color:#f38ba8">│</span> <span style="color:#cba6f7">c</span>       <span style="color:#f38ba8">│</span>     <span style="color:#fab387">3</span> <span style="color:#f38ba8">│</span>     <span style="color:#fab387">3</span> <span style="color:#f38ba8">│</span>
+</span></span><span style="display:flex;"><span><span style="color:#f38ba8">│</span> inserted   <span style="color:#f38ba8">│</span> d       <span style="color:#f38ba8">│</span>       <span style="color:#f38ba8">│</span>     <span style="color:#fab387">4</span> <span style="color:#f38ba8">│</span>
+</span></span><span style="display:flex;"><span><span style="color:#f38ba8">│</span> modified   <span style="color:#f38ba8">│</span> w       <span style="color:#f38ba8">│</span>    <span style="color:#fab387">11</span> <span style="color:#f38ba8">│</span>    <span style="color:#fab387">55</span> <span style="color:#f38ba8">│</span>
+</span></span><span style="display:flex;"><span><span style="color:#f38ba8">│</span> deleted    <span style="color:#f38ba8">│</span> x       <span style="color:#f38ba8">│</span>    <span style="color:#fab387">22</span> <span style="color:#f38ba8">│</span>       <span style="color:#f38ba8">│</span>
+</span></span><span style="display:flex;"><span><span style="color:#f38ba8">│</span> unmodified <span style="color:#f38ba8">│</span> y       <span style="color:#f38ba8">│</span>    <span style="color:#fab387">33</span> <span style="color:#f38ba8">│</span>    <span style="color:#fab387">33</span> <span style="color:#f38ba8">│</span>
+</span></span><span style="display:flex;"><span><span style="color:#f38ba8">│</span> inserted   <span style="color:#f38ba8">│</span> z       <span style="color:#f38ba8">│</span>       <span style="color:#f38ba8">│</span>    <span style="color:#fab387">44</span> <span style="color:#f38ba8">│</span>
+</span></span><span style="display:flex;"><span><span style="color:#f38ba8">└────────────┴─────────┴───────┴───────┘</span></span></span></code></pre></div>
+<p>Note that if you have multiple columns in your key, you can specify them as
+<code>(key1, key2, ...)</code>, etc.</p>
+
+
+
+
+
+
+<div class="highlight"><pre tabindex="0" style="color:#cdd6f4;background-color:#1e1e2e;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-sql" data-lang="sql"><span style="display:flex;"><span><span style="color:#cba6f7">select</span> a.<span style="color:#cba6f7">key</span>, a.val <span style="color:#cba6f7">from</span> a <span style="color:#cba6f7">inner</span> <span style="color:#cba6f7">join</span> b
+</span></span><span style="display:flex;"><span>    <span style="color:#cba6f7">on</span> (a.key1, a.key2) <span style="color:#89dceb;font-weight:bold">=</span> (b.key1, b.key2) <span style="color:#cba6f7">where</span> a.val <span style="color:#89dceb;font-weight:bold">=</span> b.val;</span></span></code></pre></div>
+
+  </content>
+  <p>
+    
+      <a href="/blog/sql/">#sql</a>&nbsp;&nbsp;
+    
+      <a href="/blog/duckdb/">#duckdb</a>&nbsp;&nbsp;
+    
+      <a href="/blog/relational-algebra/">#relational algebra</a>&nbsp;&nbsp;
+    
+  </p>
+
+    </main>
+    <footer>
+      
+  <span>© 2024 Mark Harrison</span>
+
+
+  <span>
+    |
+    Made with
+    <a href="https://github.com/maolonglong/hugo-simple/">Hugo ʕ•ᴥ•ʔ Simple</a>
+  </span>
+
+
+    </footer>
+
+    
+</body>
+</html>
