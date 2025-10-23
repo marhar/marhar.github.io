@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html>
+<head><title>Test JS Calculation</title></head>
+<body>
+<h1>Testing 1982 Scenario in JavaScript</h1>
+<pre id="output"></pre>
+
+<script src="sp500_data.js"></script>
+<script>
+const output = document.getElementById('output');
+
+// Test parameters
+const homePrice = 500000;
+const mortgageRate = 0.03;
+const termYears = 30;
+const startYear = 1982;
+
+// Calculate monthly payment
+function calculateMonthlyPayment(balance, rate, years) {
+    const monthlyRate = rate / 12;
+    const numPayments = years * 12;
+    if (monthlyRate === 0) return balance / numPayments;
+    const r = monthlyRate;
+    const n = numPayments;
+    const oneR_n = Math.pow(1 + r, n);
+    return balance * (r * oneR_n) / (oneR_n - 1);
+}
+
+const monthlyPayment = calculateMonthlyPayment(homePrice, mortgageRate, termYears);
+output.innerHTML = 'Monthly payment: $' + monthlyPayment.toFixed(2) + '\n\n';
+
+// Get returns
+const allDates = Object.keys(SP500_MONTHLY_RETURNS).sort();
+const startDate = startYear + '-02';
+const startIdx = allDates.indexOf(startDate);
+const numMonths = termYears * 12;
+
+output.innerHTML += 'Start date: ' + startDate + ' (index ' + startIdx + ')\n';
+output.innerHTML += 'Number of months: ' + numMonths + '\n\n';
+
+// Simulate scenario 2
+let investmentValue = homePrice;
+let principalRemaining = homePrice;
+const monthlyRate = mortgageRate / 12;
+let monthsUnderwater = 0;
+let minGap = Infinity;
+let minMonth = 0;
+
+output.innerHTML += 'Month by month:\n\n';
+
+for (let month = 0; month < numMonths; month++) {
+    const dateKey = allDates[startIdx + month];
+    const returnRate = SP500_MONTHLY_RETURNS[dateKey];
+
+    // Apply return
+    investmentValue *= (1 + returnRate);
+
+    // Withdraw payment
+    investmentValue -= monthlyPayment;
+
+    // Update mortgage
+    const interestPayment = principalRemaining * monthlyRate;
+    const principalPayment = monthlyPayment - interestPayment;
+    principalRemaining -= principalPayment;
+
+    // Check gap
+    const gap = investmentValue - principalRemaining;
+
+    if (gap < minGap) {
+        minGap = gap;
+        minMonth = month + 1;
+    }
+
+    if (gap < 0) {
+        monthsUnderwater++;
+    }
+
+    // Show first 12 months
+    if (month < 12) {
+        output.innerHTML += 'Month ' + (month+1) + ': Inv=$' + investmentValue.toFixed(0) + ', Principal=$' + principalRemaining.toFixed(0) + ', Gap=$' + gap.toFixed(0) + '\n';
+    }
+}
+
+output.innerHTML += '\n';
+output.innerHTML += 'Minimum gap: $' + minGap.toFixed(2) + ' at month ' + minMonth + '\n';
+output.innerHTML += 'Months underwater: ' + monthsUnderwater + ' (' + (monthsUnderwater/numMonths*100).toFixed(1) + '%)\n';
+output.innerHTML += 'Threshold check: ' + monthsUnderwater + ' > ' + (numMonths * 0.1) + ' ? ' + (monthsUnderwater > numMonths * 0.1) + '\n';
+output.innerHTML += '\nFinal investment: $' + investmentValue.toFixed(2) + '\n';
+</script>
+</body>
+</html>

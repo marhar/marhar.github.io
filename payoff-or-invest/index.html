@@ -1,0 +1,355 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Buy House Calculator - Pay Cash vs Invest</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 16px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+            overflow: hidden;
+        }
+
+        header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 30px;
+            text-align: center;
+        }
+
+        header h1 {
+            font-size: 2em;
+            margin-bottom: 10px;
+        }
+
+        header p {
+            opacity: 0.9;
+            font-size: 1.1em;
+        }
+
+        .content {
+            padding: 30px;
+        }
+
+        .input-section {
+            background: #f8f9fa;
+            padding: 25px;
+            border-radius: 12px;
+            margin-bottom: 30px;
+        }
+
+        .form-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 20px;
+            margin-bottom: 20px;
+        }
+
+        .form-group {
+            display: flex;
+            flex-direction: column;
+        }
+
+        label {
+            font-weight: 600;
+            margin-bottom: 8px;
+            color: #333;
+            font-size: 0.95em;
+        }
+
+        input[type="number"], input[type="text"], select {
+            padding: 12px;
+            border: 2px solid #e0e0e0;
+            border-radius: 8px;
+            font-size: 16px;
+            transition: border-color 0.3s;
+        }
+
+        input:focus, select:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+
+        .button-group {
+            display: flex;
+            gap: 15px;
+            flex-wrap: wrap;
+        }
+
+        button {
+            padding: 14px 28px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            border-radius: 8px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+
+        button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(102, 126, 234, 0.4);
+        }
+
+        button:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .results-section {
+            display: none;
+        }
+
+        .results-section.active {
+            display: block;
+        }
+
+        .summary-cards {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+
+        .card {
+            background: white;
+            border: 2px solid #e0e0e0;
+            border-radius: 12px;
+            padding: 20px;
+            transition: transform 0.3s, box-shadow 0.3s;
+        }
+
+        .card:hover {
+            transform: translateY(-4px);
+            box-shadow: 0 8px 20px rgba(0,0,0,0.1);
+        }
+
+        .card h3 {
+            color: #667eea;
+            margin-bottom: 15px;
+            font-size: 1.3em;
+        }
+
+        .card .value {
+            font-size: 2em;
+            font-weight: bold;
+            color: #333;
+            margin: 10px 0;
+        }
+
+        .card .label {
+            color: #666;
+            font-size: 0.9em;
+        }
+
+        .winner {
+            background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%);
+            color: white;
+            border: none;
+        }
+
+        .winner h3, .winner .label {
+            color: white;
+            opacity: 0.95;
+        }
+
+        .chart-container {
+            background: #f8f9fa;
+            padding: 25px;
+            border-radius: 12px;
+            margin-bottom: 30px;
+        }
+
+        .chart-container h3 {
+            margin-bottom: 20px;
+            color: #333;
+        }
+
+        canvas {
+            max-width: 100%;
+            height: auto;
+        }
+
+        .loading {
+            text-align: center;
+            padding: 40px;
+            color: #667eea;
+            font-size: 1.2em;
+        }
+
+        .error {
+            background: #fee;
+            color: #c33;
+            padding: 15px;
+            border-radius: 8px;
+            border-left: 4px solid #c33;
+            margin-bottom: 20px;
+        }
+
+        .info-box {
+            background: #e3f2fd;
+            border-left: 4px solid #2196f3;
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+        }
+
+        .monthly-table {
+            overflow-x: auto;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 20px;
+            font-size: 0.9em;
+        }
+
+        th, td {
+            padding: 12px;
+            text-align: right;
+            border-bottom: 1px solid #e0e0e0;
+        }
+
+        th {
+            background: #667eea;
+            color: white;
+            font-weight: 600;
+            position: sticky;
+            top: 0;
+        }
+
+        tr:hover {
+            background: #f8f9fa;
+        }
+
+        .better-mortgage {
+            background: #e8f5e9;
+        }
+
+        .better-cash {
+            background: #fff3e0;
+        }
+
+        @media (max-width: 768px) {
+            .form-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .summary-cards {
+                grid-template-columns: 1fr;
+            }
+
+            header h1 {
+                font-size: 1.5em;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>Buy House Calculator</h1>
+            <p>Pay Cash vs. Invest: Using Real S&P 500 Historical Data</p>
+        </header>
+
+        <div class="content">
+            <div class="input-section">
+                <div class="form-grid">
+                    <div class="form-group">
+                        <label for="balance">Home Price ($)</label>
+                        <input type="number" id="balance" value="500000" step="10000" min="0">
+                    </div>
+
+                    <div class="form-group">
+                        <label for="rate">Mortgage Rate (%)</label>
+                        <input type="number" id="rate" value="7" step="0.1" min="0" max="20">
+                    </div>
+
+                    <div class="form-group">
+                        <label for="term">Term (years)</label>
+                        <input type="number" id="term" value="30" step="1" min="1" max="40">
+                    </div>
+
+                    <div class="form-group">
+                        <label for="startYear">Starting Year</label>
+                        <input type="number" id="startYear" value="1990" step="1" min="1928" max="2024">
+                    </div>
+                </div>
+
+                <div class="button-group">
+                    <button id="calculateBtn">Calculate Comparison</button>
+                    <button id="riskBtn">Analyze Risk (All Periods)</button>
+                </div>
+            </div>
+
+            <div id="loadingDiv" class="loading" style="display: none;">
+                Loading S&P 500 data...
+            </div>
+
+            <div id="errorDiv" class="error" style="display: none;"></div>
+
+            <div id="resultsDiv" class="results-section">
+                <details class="info-box" style="cursor: pointer;">
+                    <summary style="font-weight: bold; font-size: 1.1em; margin-bottom: 10px;">
+                        ℹ️ About This Calculator (Click to expand)
+                    </summary>
+                    <div style="margin-top: 10px; line-height: 1.6;">
+                        <p><strong>Data Source:</strong> Real historical S&P 500 returns from Yahoo Finance (1928-2025)</p>
+                        <p><strong>Important Note:</strong> Data starts from February of selected year (not January) due to how returns are calculated.</p>
+                        <br>
+                        <p><strong>Scenario 1 (Pay Cash + Invest):</strong> Pay cash for home, invest monthly mortgage-equivalent payments in S&P 500</p>
+                        <p><strong>Scenario 2 (Mortgage + Invest):</strong> Get mortgage, invest full home price as lump sum in S&P 500, withdraw monthly mortgage payments from investment</p>
+                        <p><strong>Scenario 3 (Pay Cash Only):</strong> Pay cash for home, make no investments (baseline)</p>
+                        <br>
+                        <p><strong>Note:</strong> In Scenario 2, the investment balance can be depleted if market returns are insufficient to cover withdrawals.</p>
+                        <br>
+                        <p><strong>Not included:</strong> Taxes, fees, home appreciation, maintenance costs, inflation, or other income sources</p>
+                        <p><strong>Data:</strong> Uses actual historical S&P 500 monthly returns. Results will vary based on the time period selected.</p>
+                        <br>
+                        <p><em>For educational purposes only.</em></p>
+                        <p><a href="CALCULATIONS.md" target="_blank" style="color: #667eea;">View detailed calculation documentation</a></p>
+                    </div>
+                </details>
+
+                <div class="info-box" id="infoBox"></div>
+
+                <div class="summary-cards" id="summaryCards"></div>
+
+                <div class="chart-container" id="chartContainer" style="display: none;">
+                    <h3>Investment Growth Over Time</h3>
+                    <canvas id="comparisonChart"></canvas>
+                </div>
+
+                <div class="monthly-table" id="monthlyTable"></div>
+
+                <div id="riskResults"></div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+    <script src="sp500_data.js"></script>
+    <script src="app.js"></script>
+</body>
+</html>

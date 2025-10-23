@@ -1,0 +1,185 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>JavaScript Verification Test</title>
+</head>
+<body>
+    <h1>JavaScript Verification Test</h1>
+    <pre id="output"></pre>
+
+    <script src="sp500_data.js"></script>
+    <script>
+    const output = document.getElementById('output');
+    let log = '';
+
+    function println(text) {
+        log += text + '\n';
+        output.textContent = log;
+    }
+
+    println('='.repeat(100));
+    println('JAVASCRIPT IMPLEMENTATION VERIFICATION');
+    println('Test Case: $500,000 home, 7% rate, 30 years, starting 1990');
+    println('='.repeat(100));
+    println('');
+
+    // Parameters
+    const homePrice = 500000;
+    const annualRate = 0.07;
+    const years = 30;
+    const startYear = 1990;
+
+    const monthlyRate = annualRate / 12;
+    const numMonths = years * 12;
+
+    println('PART 1: MORTGAGE CALCULATIONS');
+    println('-'.repeat(100));
+
+    // Calculate monthly payment
+    const r = monthlyRate;
+    const n = numMonths;
+    const onePlusRtoN = Math.pow(1 + r, n);
+    const monthlyPayment = homePrice * (r * onePlusRtoN) / (onePlusRtoN - 1);
+
+    println(`Monthly rate: ${r}`);
+    println(`Number of payments: ${n}`);
+    println(`(1 + r)^n: ${onePlusRtoN}`);
+    println(`Monthly payment: $${monthlyPayment.toFixed(2)}`);
+    println('');
+
+    // Calculate total interest
+    const totalPaid = monthlyPayment * numMonths;
+    const totalInterest = totalPaid - homePrice;
+    println(`Total paid: $${totalPaid.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})}`);
+    println(`Total interest: $${totalInterest.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})}`);
+    println('');
+
+    println('PART 2: GET S&P 500 RETURNS');
+    println('-'.repeat(100));
+
+    // Get returns starting from February 1990
+    const returns = [];
+    let currentYear = startYear;
+    let currentMonth = 2;  // February
+
+    println('First 12 months of returns:');
+    for (let i = 0; i < numMonths; i++) {
+        const dateKey = `${currentYear}-${String(currentMonth).padStart(2, '0')}`;
+
+        if (SP500_MONTHLY_RETURNS[dateKey] !== undefined) {
+            const ret = SP500_MONTHLY_RETURNS[dateKey];
+            returns.push(ret);
+
+            if (i < 12) {
+                println(`  ${dateKey}: ${ret.toFixed(6)} (${(ret*100).toFixed(2)}%)`);
+            }
+        } else {
+            println(`ERROR: No data for ${dateKey}`);
+            break;
+        }
+
+        currentMonth++;
+        if (currentMonth > 12) {
+            currentMonth = 1;
+            currentYear++;
+        }
+    }
+
+    println(`\nTotal months loaded: ${returns.length}`);
+    println('');
+
+    // Calculate average return
+    let cumulative = 1.0;
+    for (const ret of returns) {
+        cumulative *= (1 + ret);
+    }
+    const avgAnnualReturn = Math.pow(cumulative, 1/years) - 1;
+    println(`Cumulative return: ${cumulative.toFixed(4)}`);
+    println(`Average annual return: ${(avgAnnualReturn*100).toFixed(2)}%`);
+    println('');
+
+    println('PART 3: SCENARIO 1 - PAY CASH, INVEST MONTHLY');
+    println('-'.repeat(100));
+
+    let scenario1InvestmentValue = 0.0;
+
+    for (let investMonth = 0; investMonth < numMonths; investMonth++) {
+        let value = monthlyPayment;
+
+        for (let growthMonth = investMonth; growthMonth < numMonths; growthMonth++) {
+            value *= (1 + returns[growthMonth]);
+        }
+
+        scenario1InvestmentValue += value;
+
+        if (investMonth < 3) {
+            println(`Month ${investMonth}: Invest $${monthlyPayment.toFixed(2)}, grows to $${value.toFixed(2)}`);
+        }
+    }
+
+    println('...');
+    println(`Total investment value: $${scenario1InvestmentValue.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})}`);
+
+    const scenario1Total = homePrice + scenario1InvestmentValue;
+    println(`Scenario 1 total: $${homePrice.toLocaleString('en-US')} + $${scenario1InvestmentValue.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})}`);
+    println(`                = $${scenario1Total.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})}`);
+    println('');
+
+    println('PART 4: SCENARIO 2 - GET MORTGAGE, INVEST LUMP SUM');
+    println('-'.repeat(100));
+
+    let scenario2InvestmentValue = homePrice;
+
+    for (let month = 0; month < numMonths; month++) {
+        scenario2InvestmentValue *= (1 + returns[month]);
+
+        if (month < 3) {
+            println(`Month ${month}: $${scenario2InvestmentValue.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})}`);
+        }
+    }
+
+    println('...');
+    println(`Total investment value: $${scenario2InvestmentValue.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})}`);
+
+    const scenario2Total = homePrice + scenario2InvestmentValue - totalInterest;
+    println(`Scenario 2 total: $${homePrice.toLocaleString('en-US')} + $${scenario2InvestmentValue.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})} - $${totalInterest.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})}`);
+    println(`                = $${scenario2Total.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})}`);
+    println('');
+
+    println('PART 5: COMPARISON');
+    println('-'.repeat(100));
+
+    const difference = scenario2Total - scenario1Total;
+    const winner = difference < 0 ? 'Scenario 1 (Pay Cash)' : 'Scenario 2 (Mortgage)';
+
+    println(`Scenario 1 (Pay Cash):    $${scenario1Total.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})}`);
+    println(`Scenario 2 (Mortgage):    $${scenario2Total.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})}`);
+    println(`Difference:               $${Math.abs(difference).toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})}`);
+    println(`Winner:                   ${winner}`);
+    println('');
+
+    println('='.repeat(100));
+    println('EXPECTED VALUES:');
+    println('='.repeat(100));
+
+    function check(label, calculated, expected) {
+        const diff = Math.abs(calculated - expected);
+        const status = diff < 1.0 ? '✓' : `❌ (off by $${diff.toFixed(2)})`;
+        const calcStr = calculated.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2});
+        const expStr = expected.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2});
+        println(`${label.padEnd(30)} $${calcStr.padStart(14)}  vs  $${expStr.padStart(14)}  ${status}`);
+    }
+
+    check('Monthly Payment:', monthlyPayment, 3326.51);
+    check('Total Interest:', totalInterest, 697544.49);
+    check('Scenario 1 Investment:', scenario1InvestmentValue, 4229054.79);
+    check('Scenario 1 Total:', scenario1Total, 4729054.79);
+    check('Scenario 2 Investment:', scenario2InvestmentValue, 4900814.62);
+    check('Scenario 2 Total:', scenario2Total, 4703270.13);
+    check('Difference:', Math.abs(difference), 25784.66);
+
+    println('');
+    println('='.repeat(100));
+    </script>
+</body>
+</html>
