@@ -1,5 +1,23 @@
 # GitHub Pages Maintenance Guide
 
+## Initial GitHub Setup (One-Time Configuration)
+
+This repository is configured to use **GitHub Actions** for deployment instead of the legacy Jekyll build system.
+
+### Repository Settings
+1. Go to: https://github.com/marhar/marhar.github.io/settings/pages
+2. Under "Build and deployment" → "Source": **GitHub Actions** (NOT "Deploy from a branch")
+3. This allows the workflow at `.github/workflows/pages.yml` to handle deployments
+
+### Key Files
+- `.nojekyll` - Tells GitHub Pages to skip Jekyll processing (required for static HTML sites)
+- `.github/workflows/pages.yml` - GitHub Actions workflow that deploys the site automatically on every push
+
+**Note:** If you ever recreate this repository or need to set up a new GitHub Pages site, remember to:
+1. Set the source to "GitHub Actions" in repository settings
+2. Include a `.nojekyll` file in the root
+3. Use the workflow file from this repository
+
 ## Making Changes to Your Website
 
 ### 1. Edit files locally
