@@ -1,0 +1,174 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Stock Returns Calculator - Test Suite</title>
+    <style>
+        body {
+            font-family: monospace;
+            padding: 20px;
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+        .test-result {
+            margin: 20px 0;
+            padding: 15px;
+            border: 1px solid #ccc;
+            border-radius: 5px;
+        }
+        .pass { background-color: #d4edda; border-color: #c3e6cb; }
+        .fail { background-color: #f8d7da; border-color: #f5c6cb; }
+        h2 { margin-top: 0; }
+        .expected { color: #666; }
+        .actual { color: #000; font-weight: bold; }
+        .diff { color: #d9534f; font-weight: bold; }
+    </style>
+</head>
+<body>
+    <h1>Stock Returns Calculator - Test Suite</h1>
+    <div id="testResults"></div>
+
+    <script src="sp500_data.js"></script>
+    <script src="app.js"></script>
+    <script>
+        const testCases = [
+            {
+                name: "Test Case 1: 2020-2024 Recent Period",
+                initial: 10000,
+                monthly: 500,
+                startDate: "2020-01-01",
+                endDate: "2024-12-31",
+                rate: 0.10,
+                expected: {
+                    finalValue: 60707.75,
+                    totalInvested: 39500.00,
+                    irr: 13.90
+                }
+            },
+            {
+                name: "Test Case 2: 1968-1986 Stagflation Period",
+                initial: 1000,
+                monthly: 100,
+                startDate: "1968-01-01",
+                endDate: "1986-01-01",
+                rate: 0.10,
+                expected: {
+                    finalValue: 44650.70,
+                    totalInvested: 22500.00,
+                    irr: 6.85
+                }
+            },
+            {
+                name: "Test Case 3: 1950-1970 Post-War Period",
+                initial: 5000,
+                monthly: 200,
+                startDate: "1950-01-01",
+                endDate: "1970-01-01",
+                rate: 0.10,
+                expected: {
+                    finalValue: 127088.82,
+                    totalInvested: 52800.00,
+                    irr: 7.41
+                }
+            }
+        ];
+
+        function runTests() {
+            const resultsDiv = document.getElementById('testResults');
+            let allPassed = true;
+
+            testCases.forEach((testCase, index) => {
+                const resultDiv = document.createElement('div');
+                resultDiv.className = 'test-result';
+
+                try {
+                    // Get monthly returns
+                    const { returns: monthlyReturns, dates } = getMonthlyReturns(
+                        testCase.startDate,
+                        testCase.endDate
+                    );
+
+                    // Calculate actual result
+                    const actualResult = calculateFutureValueActual(
+                        testCase.initial,
+                        testCase.monthly,
+                        monthlyReturns,
+                        dates,
+                        testCase.startDate
+                    );
+
+                    // Check results
+                    const finalValueDiff = Math.abs(actualResult.finalValue - testCase.expected.finalValue);
+                    const investedDiff = Math.abs(actualResult.totalInvested - testCase.expected.totalInvested);
+                    const irrDiff = Math.abs(actualResult.irr - testCase.expected.irr);
+
+                    const tolerance = {
+                        finalValue: 1.00,  // $1
+                        totalInvested: 0.01,  // $0.01
+                        irr: 0.01  // 0.01%
+                    };
+
+                    const passed =
+                        finalValueDiff <= tolerance.finalValue &&
+                        investedDiff <= tolerance.totalInvested &&
+                        irrDiff <= tolerance.irr;
+
+                    resultDiv.className += passed ? ' pass' : ' fail';
+                    allPassed = allPassed && passed;
+
+                    resultDiv.innerHTML = `
+                        <h2>${passed ? '✓' : '✗'} ${testCase.name}</h2>
+                        <p><strong>Parameters:</strong> Initial: $${testCase.initial.toLocaleString()},
+                           Monthly: $${testCase.monthly.toLocaleString()},
+                           ${testCase.startDate} to ${testCase.endDate}</p>
+
+                        <p><strong>Final Value:</strong><br>
+                           <span class="expected">Expected: $${testCase.expected.finalValue.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}</span><br>
+                           <span class="actual">Actual:   $${actualResult.finalValue.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}</span>
+                           ${finalValueDiff > tolerance.finalValue ? `<br><span class="diff">Diff: $${finalValueDiff.toFixed(2)}</span>` : ''}
+                        </p>
+
+                        <p><strong>Total Invested:</strong><br>
+                           <span class="expected">Expected: $${testCase.expected.totalInvested.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}</span><br>
+                           <span class="actual">Actual:   $${actualResult.totalInvested.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}</span>
+                           ${investedDiff > tolerance.totalInvested ? `<br><span class="diff">Diff: $${investedDiff.toFixed(2)}</span>` : ''}
+                        </p>
+
+                        <p><strong>IRR (Annualized):</strong><br>
+                           <span class="expected">Expected: ${testCase.expected.irr.toFixed(2)}%</span><br>
+                           <span class="actual">Actual:   ${actualResult.irr.toFixed(2)}%</span>
+                           ${irrDiff > tolerance.irr ? `<br><span class="diff">Diff: ${irrDiff.toFixed(2)}%</span>` : ''}
+                        </p>
+
+                        <p><strong>Data Points:</strong> ${monthlyReturns.length} months</p>
+                    `;
+
+                } catch (error) {
+                    resultDiv.className += ' fail';
+                    allPassed = false;
+                    resultDiv.innerHTML = `
+                        <h2>✗ ${testCase.name}</h2>
+                        <p class="diff">Error: ${error.message}</p>
+                    `;
+                }
+
+                resultsDiv.appendChild(resultDiv);
+            });
+
+            // Summary
+            const summary = document.createElement('div');
+            summary.style.marginTop = '30px';
+            summary.style.padding = '20px';
+            summary.style.backgroundColor = allPassed ? '#d4edda' : '#f8d7da';
+            summary.style.borderRadius = '5px';
+            summary.style.fontSize = '1.2em';
+            summary.innerHTML = `<strong>${allPassed ? '✓ All tests passed!' : '✗ Some tests failed'}</strong>`;
+            resultsDiv.appendChild(summary);
+        }
+
+        // Run tests when page loads
+        window.addEventListener('load', runTests);
+    </script>
+</body>
+</html>

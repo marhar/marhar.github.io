@@ -1,0 +1,176 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Stock Returns Calculator - S&P 500 Investment Calculator</title>
+    <link rel="stylesheet" href="../simple.min.css">
+    <style>
+        .summary-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 1.5rem;
+            margin: 1.5rem 0;
+        }
+        .summary-card {
+            padding: 1.5rem;
+            background: var(--accent-bg);
+            border: 1px solid var(--border);
+            border-radius: var(--standard-border-radius);
+        }
+        .summary-card h3 {
+            margin-top: 0;
+            color: var(--accent);
+            font-size: 1.2rem;
+        }
+        .summary-card .label {
+            font-size: 0.9rem;
+            color: var(--text-light);
+            margin-top: 1rem;
+        }
+        .summary-card .value {
+            font-size: 1.8rem;
+            font-weight: bold;
+            margin: 0.5rem 0;
+        }
+        .positive { color: #28a745; }
+        .negative { color: #dc3545; }
+        #resultsSection { display: none; }
+        #resultsSection.active { display: block; }
+        #chartContainer {
+            margin: 2rem 0;
+            padding: 1.5rem;
+            background: var(--bg);
+            border: 1px solid var(--border);
+            border-radius: var(--standard-border-radius);
+        }
+        #annualBreakdown {
+            margin: 2rem 0;
+        }
+        #annualTable {
+            width: 100%;
+            margin-top: 1rem;
+        }
+        #annualTable th {
+            text-align: left;
+            padding: 0.75rem;
+        }
+        #annualTable td {
+            padding: 0.75rem;
+        }
+        .note {
+            font-style: italic;
+            color: var(--text-light);
+            font-size: 0.9rem;
+            margin: 0.5rem 0;
+        }
+        form {
+            background: var(--accent-bg);
+            padding: 1.5rem;
+            border-radius: var(--standard-border-radius);
+            margin: 1.5rem 0;
+        }
+    </style>
+</head>
+<body>
+    <header>
+        <h1>Stock Returns Calculator</h1>
+        <p>Calculate S&P 500 investment returns using actual historical data from 1928 to present</p>
+        <nav>
+            <a href="../">Home</a>
+            <a href="https://github.com/marhar/marhar.github.io/tree/master/stockreturns">Source</a>
+        </nav>
+    </header>
+
+    <main>
+        <section>
+            <h2>Investment Parameters</h2>
+            <form id="calculatorForm">
+                <label for="initial">Initial Investment ($)</label>
+                <input type="number" id="initial" name="initial" value="10000" min="0" step="100" required>
+
+                <label for="monthly">Monthly Investment ($)</label>
+                <input type="number" id="monthly" name="monthly" value="500" min="0" step="10" required>
+
+                <label for="startDate">Start Date</label>
+                <input type="date" id="startDate" name="startDate" value="2020-01-01" min="1928-02-01" required>
+
+                <label for="endDate">End Date</label>
+                <input type="date" id="endDate" name="endDate" value="2024-12-31" required>
+
+                <label for="rate">Comparison Annual Rate (%)</label>
+                <input type="number" id="rate" name="rate" value="10" min="0" max="100" step="0.1" required>
+
+                <button type="submit">Calculate</button>
+            </form>
+        </section>
+
+        <section id="resultsSection">
+            <h2>Results</h2>
+
+            <div class="summary-grid">
+                <div class="summary-card">
+                    <h3>Actual S&P 500 Returns</h3>
+                    <div class="label">Final Value</div>
+                    <div class="value" id="actualFinalValue">$0.00</div>
+                    <div class="label">Total Invested</div>
+                    <div id="actualInvested">$0.00</div>
+                    <div class="label">Total Return</div>
+                    <div id="actualReturn">$0.00 (0.00%)</div>
+                    <div class="label">IRR (Annualized)</div>
+                    <div id="actualIRR">0.00%</div>
+                </div>
+
+                <div class="summary-card">
+                    <h3>Constant Rate Comparison</h3>
+                    <div class="label">Final Value</div>
+                    <div class="value" id="constantFinalValue">$0.00</div>
+                    <div class="label">Total Invested</div>
+                    <div id="constantInvested">$0.00</div>
+                    <div class="label">Total Return</div>
+                    <div id="constantReturn">$0.00 (0.00%)</div>
+                    <div class="label">Annual Rate</div>
+                    <div id="constantRate">0.00%</div>
+                </div>
+
+                <div class="summary-card">
+                    <h3>Comparison</h3>
+                    <div class="label">Difference</div>
+                    <div class="value" id="difference">$0.00</div>
+                    <div id="differenceText" style="margin-top: 1rem;"></div>
+                </div>
+            </div>
+
+            <div id="chartContainer">
+                <h3>Portfolio Growth Over Time</h3>
+                <canvas id="portfolioChart"></canvas>
+            </div>
+
+            <div id="annualBreakdown">
+                <h3>Annual Breakdown</h3>
+                <p class="note">Note: Portfolio Growth % includes both market returns AND new contributions</p>
+                <table id="annualTable">
+                    <thead>
+                        <tr>
+                            <th>Year</th>
+                            <th>End Value</th>
+                            <th>Total Invested</th>
+                            <th>Portfolio Growth</th>
+                        </tr>
+                    </thead>
+                    <tbody id="annualTableBody">
+                    </tbody>
+                </table>
+            </div>
+        </section>
+    </main>
+
+    <footer>
+        <p>&copy; 2024 Mark Harrison | Data source: Yahoo Finance (^GSPC)</p>
+    </footer>
+
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+    <script src="sp500_data.js"></script>
+    <script src="app.js"></script>
+</body>
+</html>
