@@ -26,18 +26,12 @@ function calculateIRR(cashFlows) {
             derivative += -j * cashFlows[j] / (factor * (1 + rate));
         }
 
-        if (i < 3) {
-            console.log(`Iteration ${i}: rate=${rate}, npv=${npv}, derivative=${derivative}`);
-        }
-
         if (Math.abs(npv) < tolerance) {
-            console.log(`IRR converged in ${i} iterations, rate=${rate}`);
             return rate;
         }
 
         if (Math.abs(derivative) < derivativeTolerance) {
-            console.log('IRR failed: derivative too small at iteration', i);
-            console.log('  rate:', rate, 'npv:', npv, 'derivative:', derivative);
+            console.warn('IRR calculation failed: derivative too small');
             return null;
         }
 
@@ -53,7 +47,7 @@ function calculateIRR(cashFlows) {
         }
     }
 
-    console.log('IRR failed: did not converge after', maxIterations, 'iterations');
+    console.warn('IRR calculation failed: did not converge after', maxIterations, 'iterations');
     return null;  // Didn't converge
 }
 
@@ -155,13 +149,7 @@ function calculateFutureValueActual(initialValue, monthlyInvestment, monthlyRetu
     // Add final value
     cashFlows.push(balance);
 
-    console.log('N (months):', N);
-    console.log('Cash flows length:', cashFlows.length, '(should be', N + 1, ')');
-    console.log('First 5 cash flows:', cashFlows.slice(0, 5));
-    console.log('Last 5 cash flows:', cashFlows.slice(-5));
-
     const monthlyIRR = calculateIRR(cashFlows);
-    console.log('Monthly IRR:', monthlyIRR);
     const annualizedIRR = monthlyIRR !== null && monthlyIRR > -1 ? ((Math.pow(1 + monthlyIRR, 12) - 1) * 100) : 0;
 
     // Build annual summary
@@ -418,9 +406,6 @@ document.getElementById('calculatorForm').addEventListener('submit', function(e)
         const { returns: monthlyReturns, dates } = getMonthlyReturns(startDate, endDate);
         const numMonths = monthlyReturns.length;
 
-        console.log(`Calculating for ${numMonths} months (${durationYears} years) from ${startDate} to ${endDate}`);
-        console.log(`Initial: ${formatCurrency(initialInvestment)}, Monthly: ${formatCurrency(monthlyInvestment)}`);
-
         // Calculate results
         const actualResult = calculateFutureValueActual(
             initialInvestment,
@@ -436,10 +421,6 @@ document.getElementById('calculatorForm').addEventListener('submit', function(e)
             comparisonRate,
             numMonths
         );
-
-        console.log('Actual final value:', formatCurrency(actualResult.finalValue));
-        console.log('Actual IRR:', formatPercent(actualResult.irr));
-        console.log('Constant final value:', formatCurrency(constantResult.finalValue));
 
         // Display
         displayResults(actualResult, constantResult, comparisonRate);
