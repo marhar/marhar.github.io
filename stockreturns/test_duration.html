@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Duration Calculation Test</title>
+    <style>
+        body { font-family: monospace; padding: 20px; }
+        .test { margin: 10px 0; padding: 10px; background: #f0f0f0; }
+        .pass { background: #d4edda; }
+        .fail { background: #f8d7da; }
+    </style>
+</head>
+<body>
+    <h1>Duration Calculation Test</h1>
+    <div id="results"></div>
+
+    <script>
+        const tests = [
+            { startDate: "2020-01-01", durationYears: 5, expectedEndYear: 2025, expectedEndMonth: 1 },
+            { startDate: "2020-01-01", durationYears: 4.5, expectedEndYear: 2024, expectedEndMonth: 7 },
+            { startDate: "1968-01-01", durationYears: 18, expectedEndYear: 1986, expectedEndMonth: 1 },
+            { startDate: "1950-01-01", durationYears: 20, expectedEndYear: 1970, expectedEndMonth: 1 },
+        ];
+
+        const resultsDiv = document.getElementById('results');
+
+        tests.forEach(test => {
+            const start = new Date(test.startDate);
+            const end = new Date(start);
+            end.setMonth(end.getMonth() + Math.round(test.durationYears * 12));
+
+            const endYear = end.getFullYear();
+            const endMonth = end.getMonth() + 1;
+
+            const passed = endYear === test.expectedEndYear && endMonth === test.expectedEndMonth;
+
+            const div = document.createElement('div');
+            div.className = 'test ' + (passed ? 'pass' : 'fail');
+            div.innerHTML = `
+                <strong>${passed ? '✓' : '✗'}</strong>
+                Start: ${test.startDate}, Duration: ${test.durationYears} years<br>
+                Expected: ${test.expectedEndYear}-${String(test.expectedEndMonth).padStart(2, '0')}<br>
+                Actual: ${endYear}-${String(endMonth).padStart(2, '0')}<br>
+                End date: ${end.toISOString().split('T')[0]}
+            `;
+            resultsDiv.appendChild(div);
+        });
+    </script>
+</body>
+</html>

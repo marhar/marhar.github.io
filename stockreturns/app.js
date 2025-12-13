@@ -364,7 +364,7 @@ document.getElementById('calculatorForm').addEventListener('submit', function(e)
         const initialInvestment = parseFloat(document.getElementById('initial').value);
         const monthlyInvestment = parseFloat(document.getElementById('monthly').value);
         const startDate = document.getElementById('startDate').value;
-        const endDate = document.getElementById('endDate').value;
+        const durationYears = parseFloat(document.getElementById('duration').value);
         const comparisonRate = parseFloat(document.getElementById('rate').value) / 100;
 
         // Validate
@@ -373,16 +373,24 @@ document.getElementById('calculatorForm').addEventListener('submit', function(e)
             return;
         }
 
-        if (new Date(startDate) >= new Date(endDate)) {
-            alert('Start date must be before end date');
+        if (durationYears <= 0) {
+            alert('Duration must be greater than 0');
             return;
         }
+
+        // Calculate end date from start date + duration
+        const start = new Date(startDate);
+        const end = new Date(start);
+        end.setMonth(end.getMonth() + Math.round(durationYears * 12));
+
+        // Format end date as YYYY-MM-DD
+        const endDate = end.toISOString().split('T')[0];
 
         // Get monthly returns
         const { returns: monthlyReturns, dates } = getMonthlyReturns(startDate, endDate);
         const numMonths = monthlyReturns.length;
 
-        console.log(`Calculating for ${numMonths} months from ${startDate} to ${endDate}`);
+        console.log(`Calculating for ${numMonths} months (${durationYears} years) from ${startDate} to ${endDate}`);
         console.log(`Initial: ${formatCurrency(initialInvestment)}, Monthly: ${formatCurrency(monthlyInvestment)}`);
 
         // Calculate results
