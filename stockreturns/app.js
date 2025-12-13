@@ -13,32 +13,47 @@
 function calculateIRR(cashFlows) {
     const maxIterations = 100;
     const tolerance = 1e-7;
-    let rate = 0.1;  // Initial guess: 10%
+    const derivativeTolerance = 1e-10;
+    let rate = 0.01;  // Initial guess: 1% monthly (more conservative)
 
     for (let i = 0; i < maxIterations; i++) {
         let npv = 0;
         let derivative = 0;
 
         for (let j = 0; j < cashFlows.length; j++) {
-            npv += cashFlows[j] / Math.pow(1 + rate, j);
-            derivative += -j * cashFlows[j] / Math.pow(1 + rate, j + 1);
+            const factor = Math.pow(1 + rate, j);
+            npv += cashFlows[j] / factor;
+            derivative += -j * cashFlows[j] / (factor * (1 + rate));
+        }
+
+        if (i < 3) {
+            console.log(`Iteration ${i}: rate=${rate}, npv=${npv}, derivative=${derivative}`);
         }
 
         if (Math.abs(npv) < tolerance) {
+            console.log(`IRR converged in ${i} iterations, rate=${rate}`);
             return rate;
         }
 
-        if (derivative === 0) {
+        if (Math.abs(derivative) < derivativeTolerance) {
+            console.log('IRR failed: derivative too small at iteration', i);
+            console.log('  rate:', rate, 'npv:', npv, 'derivative:', derivative);
             return null;
         }
 
-        rate = rate - npv / derivative;
+        // Newton-Raphson step with damping to prevent divergence
+        const step = npv / derivative;
+        rate = rate - step;
 
-        if (rate <= -1) {
-            return null;
+        // Bound the rate to reasonable values
+        if (rate <= -0.99) {
+            rate = -0.99;  // Allow up to 99% loss
+        } else if (rate > 2.0) {
+            rate = 2.0;  // Cap at 200% monthly return
         }
     }
 
+    console.log('IRR failed: did not converge after', maxIterations, 'iterations');
     return null;  // Didn't converge
 }
 
@@ -126,15 +141,28 @@ function calculateFutureValueActual(initialValue, monthlyInvestment, monthlyRetu
         yearEndData[year].endDate = currentDate;
     }
 
-    // Calculate IRR
+    // Calculate IRR (Internal Rate of Return)
+    // Cash flows: initial investment, monthly investments, final value
+    // Python: cash_flows = [-initial_value] + [-monthly_investment] * (N - 1) + [final_value]
+    const N = monthlyReturns.length;
     const cashFlows = [-initialValue];
-    for (let i = 1; i < monthlyReturns.length; i++) {
+
+    // Add (N-1) monthly investments
+    for (let i = 0; i < N - 1; i++) {
         cashFlows.push(-monthlyInvestment);
     }
+
+    // Add final value
     cashFlows.push(balance);
 
+    console.log('N (months):', N);
+    console.log('Cash flows length:', cashFlows.length, '(should be', N + 1, ')');
+    console.log('First 5 cash flows:', cashFlows.slice(0, 5));
+    console.log('Last 5 cash flows:', cashFlows.slice(-5));
+
     const monthlyIRR = calculateIRR(cashFlows);
-    const annualizedIRR = monthlyIRR !== null ? ((Math.pow(1 + monthlyIRR, 12) - 1) * 100) : 0;
+    console.log('Monthly IRR:', monthlyIRR);
+    const annualizedIRR = monthlyIRR !== null && monthlyIRR > -1 ? ((Math.pow(1 + monthlyIRR, 12) - 1) * 100) : 0;
 
     // Build annual summary
     const annualSummary = [];
