@@ -4,32 +4,57 @@
  */
 
 /**
+ * Get the latest available date in S&P 500 data
+ */
+function getLatestDataDate() {
+    const dates = Object.keys(SP500_MONTHLY_RETURNS).sort();
+    return dates[dates.length - 1];
+}
+
+/**
  * Extract monthly returns for a given date range
- * Reused from stockreturns calculator
+ * Truncates to available data if requested period extends beyond it
  */
 function getMonthlyReturns(startDate, numMonths) {
     const returns = [];
     const dates = [];
     const start = new Date(startDate);
+    const latestDataDate = getLatestDataDate();
 
     let current = new Date(start.getFullYear(), start.getMonth(), 1);
+    let monthsProcessed = 0;
+    let truncated = false;
 
     for (let i = 0; i < numMonths; i++) {
         const yearMonth = `${current.getFullYear()}-${String(current.getMonth() + 1).padStart(2, '0')}`;
 
+        // Stop if we've gone beyond available data
+        if (yearMonth > latestDataDate) {
+            truncated = true;
+            break;
+        }
+
         if (SP500_MONTHLY_RETURNS[yearMonth] !== undefined) {
             returns.push(SP500_MONTHLY_RETURNS[yearMonth]);
             dates.push(yearMonth);
+            monthsProcessed++;
         } else {
-            // If data not available, use 0 return (conservative)
+            // If data not available in range, use 0 return (conservative)
             returns.push(0);
             dates.push(yearMonth);
+            monthsProcessed++;
         }
 
         current.setMonth(current.getMonth() + 1);
     }
 
-    return { returns, dates };
+    return {
+        returns,
+        dates,
+        monthsProcessed,
+        truncated,
+        latestDataDate
+    };
 }
 
 /**
@@ -48,7 +73,9 @@ function scenarioPayoffMortgage(balance, rate, years, lumpSum, startDate) {
     const originalPayment = calculateMonthlyPayment(balance, rate, years);
 
     // Get S&P 500 returns for the full period
-    const { returns: monthlyReturns } = getMonthlyReturns(startDate, totalMonths);
+    const monthlyData = getMonthlyReturns(startDate, totalMonths);
+    const monthlyReturns = monthlyData.returns;
+    const actualMonths = monthlyData.monthsProcessed;
 
     // Apply lump sum to mortgage
     let mortgageBalance = balance - lumpSum;
@@ -73,7 +100,7 @@ function scenarioPayoffMortgage(balance, rate, years, lumpSum, startDate) {
     const monthlyInvestment = [];
     const monthlyMortgage = [];
 
-    for (let month = 1; month <= totalMonths; month++) {
+    for (let month = 1; month <= actualMonths; month++) {
         // Invest freed-up payment amount
         investmentBalance += freedAmount;
         // Apply S&P 500 return for this month
@@ -112,7 +139,10 @@ function scenarioPayoffMortgage(balance, rate, years, lumpSum, startDate) {
         finalNetWorth: monthlyNetWorth[monthlyNetWorth.length - 1],
         monthlyNetWorth,
         monthlyInvestment,
-        monthlyMortgage
+        monthlyMortgage,
+        truncated: monthlyData.truncated,
+        latestDataDate: monthlyData.latestDataDate,
+        actualMonths
     };
 }
 
@@ -132,22 +162,26 @@ function scenarioInvestLumpSum(balance, rate, years, lumpSum, startDate) {
     const totalMonths = years * 12;
 
     // Get S&P 500 returns
-    const { returns: monthlyReturns } = getMonthlyReturns(startDate, totalMonths);
+    const monthlyData = getMonthlyReturns(startDate, totalMonths);
+    const monthlyReturns = monthlyData.returns;
+    const actualMonths = monthlyData.monthsProcessed;
 
     // Invest lump sum immediately
     let investmentBalance = lumpSum;
     let mortgageBalance = balance;
+    let totalInterest = 0;
     const monthlyNetWorth = [];
     const monthlyInvestment = [];
     const monthlyMortgage = [];
 
-    for (let month = 1; month <= totalMonths; month++) {
+    for (let month = 1; month <= actualMonths; month++) {
         // Apply S&P 500 return to investment
         investmentBalance *= (1 + monthlyReturns[month - 1]);
 
         // Update mortgage balance
         const scheduleEntry = amortization.schedule[month - 1];
         mortgageBalance = scheduleEntry.balance;
+        totalInterest += scheduleEntry.interest;
 
         // Net worth = investment - mortgage balance
         const netWorth = investmentBalance - mortgageBalance;
@@ -158,13 +192,16 @@ function scenarioInvestLumpSum(balance, rate, years, lumpSum, startDate) {
     }
 
     return {
-        totalInterest: amortization.totalInterest,
+        totalInterest,
         finalInvestmentValue: investmentBalance,
         investmentGrowth: investmentBalance - lumpSum,
         finalNetWorth: monthlyNetWorth[monthlyNetWorth.length - 1],
         monthlyNetWorth,
         monthlyInvestment,
-        monthlyMortgage
+        monthlyMortgage,
+        truncated: monthlyData.truncated,
+        latestDataDate: monthlyData.latestDataDate,
+        actualMonths
     };
 }
 
@@ -234,20 +271,20 @@ function displayResults(payoffResults, investResults, lumpSum) {
  */
 let netWorthChart = null;
 
-function displayChart(payoffResults, investResults, years) {
+function displayChart(payoffResults, investResults) {
     const ctx = document.getElementById('netWorthChart').getContext('2d');
 
-    // Generate labels (years)
-    const totalMonths = years * 12;
+    // Use actual months processed (may be less than requested if data unavailable)
+    const actualMonths = payoffResults.actualMonths;
     const labels = [];
-    for (let month = 0; month <= totalMonths; month += 12) {
+    for (let month = 0; month <= actualMonths; month += 12) {
         labels.push(`Year ${month / 12}`);
     }
 
     // Sample data points (yearly)
     const payoffData = [0];
     const investData = [0];
-    for (let month = 12; month <= totalMonths; month += 12) {
+    for (let month = 12; month <= actualMonths; month += 12) {
         payoffData.push(payoffResults.monthlyNetWorth[month - 1]);
         investData.push(investResults.monthlyNetWorth[month - 1]);
     }
@@ -345,9 +382,24 @@ document.getElementById('calculatorForm').addEventListener('submit', function(e)
         const payoffResults = scenarioPayoffMortgage(balance, rate, years, lumpSum, startDate);
         const investResults = scenarioInvestLumpSum(balance, rate, years, lumpSum, startDate);
 
+        // Check if data was truncated
+        const warningDiv = document.getElementById('dataWarning');
+        const warningMessage = document.getElementById('warningMessage');
+
+        if (payoffResults.truncated) {
+            const requestedYears = years;
+            const actualYears = (payoffResults.actualMonths / 12).toFixed(1);
+            const latestDate = payoffResults.latestDataDate;
+
+            warningMessage.textContent = `The requested ${requestedYears}-year period extends beyond available S&P 500 data. Results shown for ${actualYears} years through ${latestDate}.`;
+            warningDiv.style.display = 'block';
+        } else {
+            warningDiv.style.display = 'none';
+        }
+
         // Display results
         displayResults(payoffResults, investResults, lumpSum);
-        displayChart(payoffResults, investResults, years);
+        displayChart(payoffResults, investResults);
 
     } catch (error) {
         alert('Error: ' + error.message);
