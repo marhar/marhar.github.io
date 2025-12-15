@@ -2,18 +2,62 @@
 
 Calculate the future value of investments in the S&P 500 using actual historical monthly returns data.
 
-## Features
+Available in two versions:
+- **Web Version**: Interactive browser-based calculator (no installation required)
+- **Python CLI Version**: Command-line tool for detailed analysis
 
-- Downloads actual S&P 500 historical data from Yahoo Finance
-- Calculates future value based on:
-  - Initial investment amount
-  - Monthly recurring investments
-  - Actual historical monthly returns
-- Compares results with a representative constant annual rate
-- Shows total invested, final value, returns, and IRR (Internal Rate of Return)
-- IRR properly accounts for the timing of monthly investments (dollar-cost averaging)
+---
 
-## Installation
+## Web Version
+
+**Live Demo: https://marhar.github.io/stockreturns/**
+
+Interactive calculator that runs entirely in your browser using pre-downloaded historical S&P 500 data.
+
+### Features
+
+- Simple form-based interface
+- Inputs: Initial investment, monthly investment, start date, duration in years, comparison rate
+- Real-time calculations using actual historical S&P 500 returns (1928-present)
+- Visual chart comparing actual returns vs. constant rate
+- Annual breakdown table showing year-by-year portfolio growth
+- IRR (Internal Rate of Return) calculation
+- No installation required - works offline after initial load
+
+### How to Use
+
+1. Open https://marhar.github.io/stockreturns/
+2. Enter your parameters:
+   - Initial Investment: e.g., $10,000
+   - Monthly Investment: e.g., $500
+   - Start Date: e.g., 2020-01-01
+   - Duration: e.g., 5 years
+   - Comparison Rate: e.g., 10%
+3. Click "Calculate"
+4. View results: final value, IRR, annual breakdown, and comparison chart
+
+### Updating Historical Data
+
+To update the S&P 500 data with latest market data:
+
+```bash
+cd stockreturns
+python3 download_sp500.py
+git commit -am "Update S&P 500 data"
+git push
+```
+
+This downloads latest data from Yahoo Finance and generates:
+- `sp500_monthly_returns.json` - JSON format
+- `sp500_data.js` - JavaScript module
+
+---
+
+## Python CLI Version
+
+Command-line tool for detailed historical analysis with custom date ranges.
+
+### Installation
 
 1. Install required dependencies:
 
@@ -64,35 +108,7 @@ python stockreturns.py -i 5000 -m 1000 -s 2015-06-01 -e 2025-01-01 --annual-rate
 python stockreturns.py -i 25000 -m 750 -s 2014-01-01 -e 2024-01-01
 ```
 
-## Web Version
-
-A web-based version of this calculator is available at:
-
-**https://marhar.github.io/stockreturns/**
-
-The web version provides:
-- Interactive form for entering investment parameters
-- Real-time calculations using pre-downloaded historical S&P 500 data
-- Visual chart comparing actual returns vs. constant rate
-- Annual breakdown table showing year-by-year portfolio growth
-- Works entirely in the browser (no server required)
-
-### Updating Web Data
-
-To update the historical S&P 500 data for the web version:
-
-```bash
-cd stockreturns
-python3 download_sp500.py
-```
-
-This downloads the latest data from Yahoo Finance and generates:
-- `sp500_monthly_returns.json` - JSON format data
-- `sp500_data.js` - JavaScript module for the web app
-
-After updating, commit and push the changes to update the live site.
-
-## CLI Output
+### CLI Output
 
 The program displays four sections:
 
@@ -150,7 +166,18 @@ Year           End Value  Total Invested  Portfolio Growth
 2024     $     60,707.75 $     39,500.00            39.04%
 ```
 
-## Data Source
+### Requirements
+
+- Python 3.7+
+- yfinance >= 0.2.0
+- pandas >= 2.0.0
+- numpy-financial >= 1.0.0
+
+---
+
+## Technical Details
+
+### Data Source
 
 The program uses the S&P 500 Index (^GSPC) data from Yahoo Finance, accessed via the `yfinance` library. Data includes:
 - Daily adjusted closing prices (accounts for dividends and splits)
@@ -184,7 +211,7 @@ The program uses **Internal Rate of Return (IRR)** instead of a simple CAGR calc
 
 For example, a $40,000 total investment might show 53% total return but a 13.76% IRR, properly reflecting the annualized return on capital considering when each dollar was invested.
 
-## Notes
+### Important Notes
 
 - Past performance does not guarantee future results
 - The program uses adjusted close prices which account for dividends and stock splits
@@ -192,9 +219,8 @@ For example, a $40,000 total investment might show 53% total return but a 13.76%
 - The comparison rate defaults to 10% annually (approximately the S&P 500's historical average)
 - IRR properly accounts for dollar-cost averaging (investing equal amounts at regular intervals)
 
-## Requirements
+---
 
-- Python 3.7+
-- yfinance >= 0.2.0
-- pandas >= 2.0.0
-- numpy-financial >= 1.0.0
+## Related Tools
+
+- **[Mortgage Payoff vs Invest Calculator](../mortgage-payoff/)** - Should you pay off your mortgage or invest in S&P 500?
