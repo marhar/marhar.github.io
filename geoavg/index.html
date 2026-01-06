@@ -1,0 +1,719 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Geographic Center Calculator</title>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <style>
+        :root {
+            --color-primary: #3498db;
+            --color-primary-dark: #2980b9;
+            --color-danger: #e74c3c;
+            --color-danger-dark: #c0392b;
+            --color-text: #333;
+            --color-text-light: #666;
+            --color-text-muted: #888;
+            --color-bg: #f8f9fa;
+            --color-border: #eee;
+            --font-mono: ui-monospace, SFMono-Regular, 'SF Mono', Menlo, monospace;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+        }
+
+        /* Map and Globe containers */
+        #map, #globe {
+            height: 100vh;
+            width: 100%;
+            position: absolute;
+            top: 0;
+            left: 0;
+        }
+
+        #globe {
+            display: none;
+            background: #000011;
+        }
+
+        /* Control panel */
+        .controls {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            z-index: 1000;
+            background: white;
+            padding: 15px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.2);
+            max-width: 300px;
+            max-height: 90vh;
+            overflow-y: auto;
+        }
+
+        .controls h3 {
+            margin-bottom: 10px;
+            color: var(--color-text);
+        }
+
+        .controls p {
+            font-size: 14px;
+            color: var(--color-text-light);
+            margin-bottom: 10px;
+        }
+
+        /* Buttons */
+        .controls button {
+            width: 100%;
+            padding: 10px;
+            background: var(--color-danger);
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 14px;
+            margin-bottom: 8px;
+        }
+
+        .controls button:hover {
+            background: var(--color-danger-dark);
+        }
+
+        .controls button.toggle-view {
+            background: var(--color-primary);
+        }
+
+        .controls button.toggle-view:hover {
+            background: var(--color-primary-dark);
+        }
+
+        #point-count {
+            font-weight: bold;
+            color: var(--color-primary);
+        }
+
+        /* Center marker icon */
+        .center-icon {
+            background: var(--color-danger);
+            border: 3px solid white;
+            border-radius: 50%;
+            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.3);
+        }
+
+        /* Search */
+        .search-container {
+            margin-bottom: 15px;
+            padding-bottom: 15px;
+            border-bottom: 1px solid var(--color-border);
+        }
+
+        .search-container input {
+            width: 100%;
+            padding: 8px 10px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 14px;
+            margin-bottom: 8px;
+        }
+
+        .search-container input:focus {
+            outline: none;
+            border-color: var(--color-primary);
+        }
+
+        .search-results {
+            max-height: 200px;
+            overflow-y: auto;
+        }
+
+        .search-result {
+            padding: 8px 10px;
+            font-size: 13px;
+            cursor: pointer;
+            border-radius: 4px;
+            margin-bottom: 4px;
+            background: var(--color-bg);
+            color: var(--color-text);
+        }
+
+        .search-result:hover {
+            background: #e3f2fd;
+        }
+
+        .search-status {
+            font-size: 12px;
+            color: var(--color-text-muted);
+            padding: 5px 0;
+        }
+
+        /* Coordinate list */
+        #coord-list {
+            margin-top: 15px;
+            border-top: 1px solid var(--color-border);
+            padding-top: 10px;
+        }
+
+        #coord-list h4 {
+            font-size: 13px;
+            color: var(--color-text);
+            margin-bottom: 8px;
+        }
+
+        .coord-item {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            font-size: 12px;
+            font-family: var(--font-mono);
+            padding: 5px 8px;
+            margin-bottom: 4px;
+            background: var(--color-bg);
+            border-radius: 4px;
+            color: #555;
+        }
+
+        .coord-item.center {
+            background: #ffeaea;
+            color: var(--color-danger);
+            font-weight: bold;
+        }
+
+        .coord-info {
+            flex: 1;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .coord-label {
+            color: var(--color-primary);
+            font-weight: bold;
+        }
+
+        .coord-item.center .coord-label {
+            color: var(--color-danger);
+        }
+
+        .delete-btn {
+            background: none;
+            border: none;
+            color: #999;
+            cursor: pointer;
+            font-size: 16px;
+            padding: 0 5px;
+            margin: 0;
+            width: auto;
+            line-height: 1;
+        }
+
+        .delete-btn:hover {
+            color: var(--color-danger);
+            background: none;
+        }
+
+        /* Popup delete link */
+        .popup-delete {
+            color: var(--color-danger);
+            text-decoration: none;
+            font-size: 12px;
+        }
+
+        .popup-delete:hover {
+            text-decoration: underline;
+        }
+    </style>
+</head>
+<body>
+    <div id="map"></div>
+    <div id="globe"></div>
+
+    <div class="controls">
+        <h3>Geo Center Calculator</h3>
+
+        <div class="search-container">
+            <input type="text" id="search-input" placeholder="Search for a location..." aria-label="Search locations">
+            <div id="search-results" class="search-results"></div>
+        </div>
+
+        <p>Click to add. Drag to move.</p>
+        <p>Points: <span id="point-count">0</span></p>
+
+        <button class="toggle-view" id="toggle-view-btn">Switch to Globe</button>
+        <button id="clear-btn">Clear All</button>
+
+        <div id="coord-list"></div>
+    </div>
+
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script src="https://unpkg.com/globe.gl"></script>
+    <script>
+    (function() {
+        'use strict';
+
+        // ============================================================
+        // Constants
+        // ============================================================
+
+        const DEG_TO_RAD = Math.PI / 180;
+        const RAD_TO_DEG = 180 / Math.PI;
+        const SEARCH_DEBOUNCE_MS = 300;
+        const DEFAULT_ZOOM = 10;
+
+        // ============================================================
+        // State
+        // ============================================================
+
+        let isGlobeView = false;
+        let globe = null;
+        let locations = [];
+        let markers = [];
+        let lines = [];
+        let centerMarker = null;
+        let searchTimeout = null;
+
+        // ============================================================
+        // DOM Elements
+        // ============================================================
+
+        const mapEl = document.getElementById('map');
+        const globeEl = document.getElementById('globe');
+        const toggleViewBtn = document.getElementById('toggle-view-btn');
+        const clearBtn = document.getElementById('clear-btn');
+        const searchInput = document.getElementById('search-input');
+        const searchResults = document.getElementById('search-results');
+        const pointCountEl = document.getElementById('point-count');
+        const coordListEl = document.getElementById('coord-list');
+
+        // ============================================================
+        // Initialize Leaflet Map
+        // ============================================================
+
+        const map = L.map('map').setView([40, -95], 4);
+
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
+        }).addTo(map);
+
+        const centerIcon = L.divIcon({
+            className: 'center-icon',
+            iconSize: [20, 20],
+            iconAnchor: [10, 10]
+        });
+
+        const pointIcon = L.icon({
+            iconUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon.png',
+            iconRetinaUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon-2x.png',
+            shadowUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png',
+            iconSize: [25, 41],
+            iconAnchor: [12, 41],
+            popupAnchor: [1, -34],
+            shadowSize: [41, 41]
+        });
+
+        // ============================================================
+        // Helper Functions
+        // ============================================================
+
+        function getPointLabel(loc, index) {
+            return loc.name ? loc.name.split(',')[0] : `Point ${index + 1}`;
+        }
+
+        function formatCoord(value) {
+            return parseFloat(value).toFixed(6);
+        }
+
+        function createPopupContent(loc, index) {
+            const label = getPointLabel(loc, index);
+            return `<b>${label}</b><br>` +
+                   `Lat: ${formatCoord(loc.lat)}<br>` +
+                   `Lng: ${formatCoord(loc.lng)}<br>` +
+                   `<a href="#" class="popup-delete" onclick="window.deletePoint(${index}); return false;">Delete</a>`;
+        }
+
+        // ============================================================
+        // Geographic Center Calculation (Spherical Averaging)
+        // ============================================================
+
+        function calculateCenter(locs) {
+            if (locs.length === 0) return null;
+
+            let x = 0, y = 0, z = 0;
+
+            for (const loc of locs) {
+                const latRad = loc.lat * DEG_TO_RAD;
+                const lngRad = loc.lng * DEG_TO_RAD;
+
+                x += Math.cos(latRad) * Math.cos(lngRad);
+                y += Math.cos(latRad) * Math.sin(lngRad);
+                z += Math.sin(latRad);
+            }
+
+            x /= locs.length;
+            y /= locs.length;
+            z /= locs.length;
+
+            const centralLng = Math.atan2(y, x);
+            const hyp = Math.sqrt(x * x + y * y);
+            const centralLat = Math.atan2(z, hyp);
+
+            return {
+                lat: centralLat * RAD_TO_DEG,
+                lng: centralLng * RAD_TO_DEG
+            };
+        }
+
+        // ============================================================
+        // Globe Initialization and Updates
+        // ============================================================
+
+        function initGlobe() {
+            if (globe) return;
+
+            globe = Globe()
+                .globeImageUrl('https://unpkg.com/three-globe/example/img/earth-blue-marble.jpg')
+                .bumpImageUrl('https://unpkg.com/three-globe/example/img/earth-topology.png')
+                .backgroundImageUrl('https://unpkg.com/three-globe/example/img/night-sky.png')
+                .pointsData([])
+                .pointLat('lat')
+                .pointLng('lng')
+                .pointColor('color')
+                .pointRadius('radius')
+                .pointAltitude(0.01)
+                .arcsData([])
+                .arcStartLat('startLat')
+                .arcStartLng('startLng')
+                .arcEndLat('endLat')
+                .arcEndLng('endLng')
+                .arcColor('color')
+                .arcStroke(0.5)
+                .arcAltitudeAutoScale(0.3)
+                .onGlobeClick(({ lat, lng }) => addPoint(lat, lng))
+                (globeEl);
+
+            window.addEventListener('resize', () => {
+                if (globe) {
+                    globe.width(window.innerWidth);
+                    globe.height(window.innerHeight);
+                }
+            });
+        }
+
+        function updateGlobe() {
+            if (!globe) return;
+
+            const points = locations.map((loc, i) => ({
+                lat: loc.lat,
+                lng: loc.lng,
+                color: '#3498db',
+                radius: 0.5,
+                label: getPointLabel(loc, i)
+            }));
+
+            const arcs = [];
+
+            if (locations.length >= 1) {
+                const center = calculateCenter(locations);
+
+                points.push({
+                    lat: center.lat,
+                    lng: center.lng,
+                    color: '#e74c3c',
+                    radius: 0.7,
+                    label: 'Center'
+                });
+
+                for (const loc of locations) {
+                    arcs.push({
+                        startLat: loc.lat,
+                        startLng: loc.lng,
+                        endLat: center.lat,
+                        endLng: center.lng,
+                        color: ['#3498db', '#e74c3c']
+                    });
+                }
+            }
+
+            globe.pointsData(points);
+            globe.arcsData(arcs);
+        }
+
+        // ============================================================
+        // View Toggle
+        // ============================================================
+
+        function toggleView() {
+            isGlobeView = !isGlobeView;
+
+            if (isGlobeView) {
+                mapEl.style.display = 'none';
+                globeEl.style.display = 'block';
+                toggleViewBtn.textContent = 'Switch to Map';
+                initGlobe();
+                updateGlobe();
+            } else {
+                mapEl.style.display = 'block';
+                globeEl.style.display = 'none';
+                toggleViewBtn.textContent = 'Switch to Globe';
+                map.invalidateSize();
+            }
+        }
+
+        // ============================================================
+        // Lines and Center Marker Updates
+        // ============================================================
+
+        function clearLinesAndCenter() {
+            lines.forEach(line => map.removeLayer(line));
+            lines = [];
+
+            if (centerMarker) {
+                map.removeLayer(centerMarker);
+                centerMarker = null;
+            }
+        }
+
+        function drawLinesAndCenter(showPopup = true) {
+            if (locations.length === 0) return null;
+
+            const center = calculateCenter(locations);
+
+            centerMarker = L.marker([center.lat, center.lng], {
+                icon: centerIcon,
+                zIndexOffset: 1000
+            }).addTo(map);
+
+            if (showPopup) {
+                centerMarker.bindPopup(
+                    `<b>Center</b><br>Lat: ${formatCoord(center.lat)}<br>Lng: ${formatCoord(center.lng)}`
+                );
+            }
+
+            for (const loc of locations) {
+                const line = L.polyline(
+                    [[loc.lat, loc.lng], [center.lat, center.lng]],
+                    { color: '#3498db', weight: 2, opacity: 0.7 }
+                ).addTo(map);
+                lines.push(line);
+            }
+
+            return center;
+        }
+
+        function updateLinesAndCenter() {
+            clearLinesAndCenter();
+            drawLinesAndCenter(false);
+        }
+
+        // ============================================================
+        // Display Updates
+        // ============================================================
+
+        function updateCoordList(center) {
+            if (locations.length === 0) {
+                coordListEl.innerHTML = '';
+                return;
+            }
+
+            let html = '<h4>Coordinates</h4>';
+
+            for (let i = 0; i < locations.length; i++) {
+                const loc = locations[i];
+                const label = getPointLabel(loc, i);
+                html += `
+                    <div class="coord-item">
+                        <span class="coord-info">
+                            <span class="coord-label">${label}:</span>
+                            ${formatCoord(loc.lat)}, ${formatCoord(loc.lng)}
+                        </span>
+                        <button class="delete-btn" data-index="${i}" title="Delete point">&times;</button>
+                    </div>`;
+            }
+
+            if (center) {
+                html += `
+                    <div class="coord-item center">
+                        <span class="coord-info">
+                            <span class="coord-label">Center:</span>
+                            ${formatCoord(center.lat)}, ${formatCoord(center.lng)}
+                        </span>
+                    </div>`;
+            }
+
+            coordListEl.innerHTML = html;
+
+            // Attach delete handlers
+            coordListEl.querySelectorAll('.delete-btn').forEach(btn => {
+                btn.addEventListener('click', (e) => {
+                    const index = parseInt(e.target.dataset.index, 10);
+                    deletePoint(index);
+                });
+            });
+        }
+
+        function updateDisplay() {
+            clearLinesAndCenter();
+            pointCountEl.textContent = locations.length;
+
+            const center = locations.length > 0 ? drawLinesAndCenter(true) : null;
+            updateCoordList(center);
+        }
+
+        // ============================================================
+        // Point Management
+        // ============================================================
+
+        function addPoint(lat, lng, name) {
+            const index = locations.length;
+            locations.push({ lat, lng, name });
+
+            const marker = L.marker([lat, lng], {
+                icon: pointIcon,
+                draggable: true
+            }).addTo(map);
+
+            marker.bindPopup(createPopupContent(locations[index], index));
+            marker._pointIndex = index;
+
+            marker.on('drag', function() {
+                const idx = this._pointIndex;
+                const pos = this.getLatLng();
+                locations[idx].lat = pos.lat;
+                locations[idx].lng = pos.lng;
+                updateLinesAndCenter();
+            });
+
+            marker.on('dragend', function() {
+                const idx = this._pointIndex;
+                const pos = this.getLatLng();
+                locations[idx].lat = pos.lat;
+                locations[idx].lng = pos.lng;
+                this.setPopupContent(createPopupContent(locations[idx], idx));
+                updateDisplay();
+                if (isGlobeView) updateGlobe();
+            });
+
+            markers.push(marker);
+            updateDisplay();
+            if (isGlobeView) updateGlobe();
+        }
+
+        function deletePoint(index) {
+            if (index < 0 || index >= locations.length) return;
+
+            map.removeLayer(markers[index]);
+            locations.splice(index, 1);
+            markers.splice(index, 1);
+
+            // Re-index remaining markers
+            markers.forEach((marker, i) => {
+                marker._pointIndex = i;
+                marker.setPopupContent(createPopupContent(locations[i], i));
+            });
+
+            updateDisplay();
+            if (isGlobeView) updateGlobe();
+        }
+
+        function clearAll() {
+            markers.forEach(marker => map.removeLayer(marker));
+            markers = [];
+            locations = [];
+
+            clearLinesAndCenter();
+            pointCountEl.textContent = '0';
+            coordListEl.innerHTML = '';
+
+            if (globe) {
+                globe.pointsData([]);
+                globe.arcsData([]);
+            }
+        }
+
+        // Expose deletePoint globally for popup onclick
+        window.deletePoint = deletePoint;
+
+        // ============================================================
+        // Location Search (Nominatim)
+        // ============================================================
+
+        function handleSearchInput() {
+            const query = searchInput.value.trim();
+
+            if (searchTimeout) clearTimeout(searchTimeout);
+
+            if (query.length < 2) {
+                searchResults.innerHTML = '';
+                return;
+            }
+
+            searchTimeout = setTimeout(() => searchLocation(query), SEARCH_DEBOUNCE_MS);
+        }
+
+        async function searchLocation(query) {
+            searchResults.innerHTML = '<div class="search-status">Searching...</div>';
+
+            try {
+                const url = `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(query)}&limit=5`;
+                const response = await fetch(url);
+
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}`);
+                }
+
+                const results = await response.json();
+
+                if (results.length === 0) {
+                    searchResults.innerHTML = '<div class="search-status">No results found</div>';
+                    return;
+                }
+
+                searchResults.innerHTML = '';
+
+                for (const result of results) {
+                    const div = document.createElement('div');
+                    div.className = 'search-result';
+                    div.textContent = result.display_name;
+                    div.addEventListener('click', () => {
+                        selectSearchResult(
+                            parseFloat(result.lat),
+                            parseFloat(result.lon),
+                            result.display_name
+                        );
+                    });
+                    searchResults.appendChild(div);
+                }
+            } catch (error) {
+                console.error('Search error:', error);
+                searchResults.innerHTML = '<div class="search-status">Search error. Try again.</div>';
+            }
+        }
+
+        function selectSearchResult(lat, lng, name) {
+            searchInput.value = '';
+            searchResults.innerHTML = '';
+            addPoint(lat, lng, name);
+
+            if (!isGlobeView) {
+                map.setView([lat, lng], DEFAULT_ZOOM);
+            }
+        }
+
+        // ============================================================
+        // Event Listeners
+        // ============================================================
+
+        map.on('click', (e) => addPoint(e.latlng.lat, e.latlng.lng));
+        toggleViewBtn.addEventListener('click', toggleView);
+        clearBtn.addEventListener('click', clearAll);
+        searchInput.addEventListener('input', handleSearchInput);
+
+    })();
+    </script>
+</body>
+</html>

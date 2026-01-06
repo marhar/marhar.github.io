@@ -1,0 +1,22 @@
+> we want to create a geo web app.  on a map, allow the user to
+click on locations.  Each click, we save the location and show a
+pointer on the map. in addition, we calculate the center of the
+clicked locations, and show that, with lines coming from each
+location to the center.
+
+> add a display of the lat/long of each coordinate
+
+> make an option to switch to a globe
+
+> add a search box for locations. provide a list of found locations,
+and allow the user to select one. place a pin and treat it as above.
+
+> add two features: drag and drop a point, and delete a point
+
+> when i drag, update the center and lines dynamically
+
+> add the delete functionality to the popup also
+
+> examine everything. think very hard, refactor, beautify, and
+improve code and docs as necessary
+
