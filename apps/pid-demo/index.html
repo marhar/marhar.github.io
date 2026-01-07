@@ -392,18 +392,18 @@
             <div class="control-group i-control">
                 <label>
                     <span>I (Integral)</span>
-                    <span class="value" id="i-value">0.10</span>
+                    <span class="value" id="i-value">0.00</span>
                 </label>
-                <input type="range" id="i-slider" min="0" max="1" step="0.01" value="0.1">
-                <div class="hint">Eliminates steady-state error. Too high = overshoot.</div>
+                <input type="range" id="i-slider" min="0" max="1" step="0.01" value="0">
+                <div class="hint">Corrects for wind/disturbances. Too high = overshoot.</div>
             </div>
 
             <div class="control-group d-control">
                 <label>
                     <span>D (Derivative)</span>
-                    <span class="value" id="d-value">0.0</span>
+                    <span class="value" id="d-value">1.00</span>
                 </label>
-                <input type="range" id="d-slider" min="0" max="5" step="0.05" value="0">
+                <input type="range" id="d-slider" min="0" max="5" step="0.05" value="1">
                 <div class="hint">Dampens oscillation. Predicts future error.</div>
             </div>
 
@@ -508,8 +508,8 @@
         const state = {
             // PID gains
             kP: 5.0,
-            kI: 0.1,
-            kD: 0.0,
+            kI: 0.0,
+            kD: 1.0,
 
             // System state
             position: 0,
@@ -612,12 +612,14 @@
         // ============================================================
 
         function updatePhysics() {
-            // Compute PID control output (force) - this is the helicopter thrust
+            // Compute PID control output (force correction)
             const pidForce = computePID();
 
-            // Total force = thrust (up) - gravity (down) + wind
-            // Gravity pulls down (negative), PID provides upward thrust (positive)
-            const totalForce = pidForce - CONFIG.gravity + state.fanForce;
+            // Feedforward gravity compensation: baseline thrust = gravity
+            // PID only handles deviations from hover
+            // thrust = gravity (feedforward) + pidForce (feedback)
+            // netForce = thrust - gravity + wind = pidForce + wind
+            const totalForce = pidForce + state.fanForce;
 
             // Apply force (F = ma, so a = F/m)
             const acceleration = totalForce / CONFIG.mass;
@@ -1015,8 +1017,8 @@
         function resetAll() {
             // Reset PID gains to initial values
             state.kP = 5.0;
-            state.kI = 0.1;
-            state.kD = 0;
+            state.kI = 0;
+            state.kD = 1.0;
             state.fanForce = 0;
 
             // Update sliders
