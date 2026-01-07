@@ -818,15 +818,18 @@
 
             // Draw wind effect if active (vertical arrows)
             if (Math.abs(state.fanForce) > 0.1) {
-                const windDir = state.fanForce > 0 ? -1 : 1;  // positive force = upward, negative = downward
+                // Updraft (positive): wind comes FROM bottom, arrows point UP
+                // Downdraft (negative): wind comes FROM top, arrows point DOWN
+                const isUpdraft = state.fanForce > 0;
                 const windStrength = Math.abs(state.fanForce) / CONFIG.maxFanForce;
                 const numLines = Math.ceil(windStrength * 3) + 2;
 
                 simCtx.strokeStyle = 'rgba(155, 89, 182, 0.6)';
                 simCtx.lineWidth = 2;
 
-                const startY = windDir < 0 ? 10 : h - 30;
-                const lineLen = (25 + windStrength * 30) * windDir;
+                const startY = isUpdraft ? h - 30 : 10;
+                const arrowDir = isUpdraft ? -1 : 1;  // -1 = up, 1 = down
+                const lineLen = (25 + windStrength * 30) * arrowDir;
 
                 for (let i = 0; i < numLines; i++) {
                     const xPos = 15 + i * 20;
@@ -842,8 +845,8 @@
                     simCtx.fillStyle = 'rgba(155, 89, 182, 0.6)';
                     simCtx.beginPath();
                     simCtx.moveTo(xPos, endY);
-                    simCtx.lineTo(xPos - 4, endY - windDir * 6);
-                    simCtx.lineTo(xPos + 4, endY - windDir * 6);
+                    simCtx.lineTo(xPos - 4, endY - arrowDir * 6);
+                    simCtx.lineTo(xPos + 4, endY - arrowDir * 6);
                     simCtx.closePath();
                     simCtx.fill();
                 }
@@ -851,7 +854,7 @@
                 simCtx.fillStyle = '#9b59b6';
                 simCtx.font = '11px sans-serif';
                 simCtx.textAlign = 'center';
-                simCtx.fillText(state.fanForce > 0 ? 'Updraft' : 'Downdraft', w / 2, windDir < 0 ? 25 : h - 35);
+                simCtx.fillText(isUpdraft ? 'Updraft' : 'Downdraft', w / 2, isUpdraft ? h - 35 : 25);
             }
         }
 
