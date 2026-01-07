@@ -1,0 +1,1096 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PID Controller Demo</title>
+    <style>
+        :root {
+            --color-primary: #3498db;
+            --color-primary-dark: #2980b9;
+            --color-danger: #e74c3c;
+            --color-success: #27ae60;
+            --color-warning: #f39c12;
+            --color-text: #333;
+            --color-text-light: #666;
+            --color-bg: #f8f9fa;
+            --color-border: #ddd;
+            --font-mono: ui-monospace, SFMono-Regular, 'SF Mono', Menlo, monospace;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: var(--color-bg);
+            min-height: 100vh;
+        }
+
+        .container {
+            display: flex;
+            flex-wrap: wrap;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+            gap: 20px;
+        }
+
+        h1 {
+            width: 100%;
+            font-size: 1.5rem;
+            color: var(--color-text);
+            margin-bottom: 10px;
+        }
+
+        .description {
+            width: 100%;
+            color: var(--color-text-light);
+            margin-bottom: 10px;
+            line-height: 1.5;
+        }
+
+        .description a {
+            color: var(--color-primary);
+        }
+
+        /* Visualization area */
+        .viz-panel {
+            flex: 1;
+            min-width: 400px;
+            background: white;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+            padding: 15px;
+        }
+
+        .viz-panel h3 {
+            font-size: 14px;
+            color: var(--color-text);
+            margin-bottom: 10px;
+        }
+
+        #sim-canvas {
+            width: 250px;
+            height: 450px;
+            border: 1px solid var(--color-border);
+            border-radius: 4px;
+            cursor: crosshair;
+            display: block;
+            margin: 0 auto;
+        }
+
+        #graph-canvas {
+            width: 100%;
+            height: 200px;
+            border: 1px solid var(--color-border);
+            border-radius: 4px;
+            margin-top: 15px;
+        }
+
+        .graph-legend {
+            display: flex;
+            gap: 20px;
+            margin-top: 8px;
+            font-size: 12px;
+        }
+
+        .legend-item {
+            display: flex;
+            align-items: center;
+            gap: 5px;
+        }
+
+        .legend-color {
+            width: 20px;
+            height: 3px;
+        }
+
+        /* Control panel */
+        .control-panel {
+            width: 300px;
+            background: white;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+            padding: 15px;
+        }
+
+        .control-panel h3 {
+            font-size: 14px;
+            color: var(--color-text);
+            margin-bottom: 15px;
+            padding-bottom: 10px;
+            border-bottom: 1px solid var(--color-border);
+        }
+
+        .control-group {
+            margin-bottom: 20px;
+        }
+
+        .control-group label {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-size: 14px;
+            font-weight: 600;
+            color: var(--color-text);
+            margin-bottom: 8px;
+        }
+
+        .control-group .value {
+            font-family: var(--font-mono);
+            font-weight: normal;
+            color: var(--color-primary);
+        }
+
+        .control-group input[type="range"] {
+            width: 100%;
+            height: 6px;
+            -webkit-appearance: none;
+            appearance: none;
+            background: #e0e0e0;
+            border-radius: 3px;
+            outline: none;
+        }
+
+        .control-group input[type="range"]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 18px;
+            height: 18px;
+            background: var(--color-primary);
+            border-radius: 50%;
+            cursor: pointer;
+        }
+
+        .control-group input[type="range"]::-moz-range-thumb {
+            width: 18px;
+            height: 18px;
+            background: var(--color-primary);
+            border-radius: 50%;
+            cursor: pointer;
+            border: none;
+        }
+
+        .control-group.p-control input[type="range"]::-webkit-slider-thumb {
+            background: var(--color-danger);
+        }
+        .control-group.i-control input[type="range"]::-webkit-slider-thumb {
+            background: var(--color-success);
+        }
+        .control-group.d-control input[type="range"]::-webkit-slider-thumb {
+            background: var(--color-warning);
+        }
+
+        .control-group.p-control input[type="range"]::-moz-range-thumb {
+            background: var(--color-danger);
+        }
+        .control-group.i-control input[type="range"]::-moz-range-thumb {
+            background: var(--color-success);
+        }
+        .control-group.d-control input[type="range"]::-moz-range-thumb {
+            background: var(--color-warning);
+        }
+        .control-group.fan-control input[type="range"]::-webkit-slider-thumb {
+            background: #9b59b6;
+        }
+        .control-group.fan-control input[type="range"]::-moz-range-thumb {
+            background: #9b59b6;
+        }
+        .control-group .hint {
+            font-size: 11px;
+            color: var(--color-text-light);
+            margin-top: 5px;
+        }
+
+        .button-group {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            margin-top: 20px;
+            padding-top: 15px;
+            border-top: 1px solid var(--color-border);
+        }
+
+        button {
+            padding: 10px 15px;
+            font-size: 14px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+
+        button.primary {
+            background: var(--color-primary);
+            color: white;
+        }
+
+        button.primary:hover {
+            background: var(--color-primary-dark);
+        }
+
+        button.secondary {
+            background: #e0e0e0;
+            color: var(--color-text);
+        }
+
+        button.secondary:hover {
+            background: #d0d0d0;
+        }
+
+        button.danger {
+            background: var(--color-danger);
+            color: white;
+        }
+
+        button.danger:hover {
+            background: #c0392b;
+        }
+
+        /* Presets */
+        .presets {
+            margin-top: 20px;
+            padding-top: 15px;
+            border-top: 1px solid var(--color-border);
+        }
+
+        .presets h4 {
+            font-size: 13px;
+            color: var(--color-text);
+            margin-bottom: 10px;
+        }
+
+        .preset-buttons {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 6px;
+        }
+
+        .preset-buttons button {
+            flex: 1;
+            min-width: 80px;
+            padding: 8px 10px;
+            font-size: 12px;
+            background: var(--color-bg);
+            color: var(--color-text);
+            border: 1px solid var(--color-border);
+        }
+
+        .preset-buttons button:hover {
+            background: #e8e8e8;
+        }
+
+        /* Stats */
+        .stats {
+            margin-top: 20px;
+            padding-top: 15px;
+            border-top: 1px solid var(--color-border);
+        }
+
+        .stats h4 {
+            font-size: 13px;
+            color: var(--color-text);
+            margin-bottom: 10px;
+        }
+
+        .stat-row {
+            display: flex;
+            justify-content: space-between;
+            font-size: 12px;
+            padding: 4px 0;
+        }
+
+        .stat-row .label {
+            color: var(--color-text-light);
+        }
+
+        .stat-row .value {
+            font-family: var(--font-mono);
+            color: var(--color-text);
+        }
+
+        /* Instructions */
+        .instructions {
+            width: 100%;
+            background: white;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+            padding: 15px;
+            margin-top: 10px;
+        }
+
+        .instructions h3 {
+            font-size: 14px;
+            color: var(--color-text);
+            margin-bottom: 10px;
+        }
+
+        .instructions ul {
+            margin-left: 20px;
+            color: var(--color-text-light);
+            font-size: 13px;
+            line-height: 1.8;
+        }
+
+        .instructions code {
+            background: var(--color-bg);
+            padding: 2px 6px;
+            border-radius: 3px;
+            font-family: var(--font-mono);
+            font-size: 12px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>East Bay Guide to PID Loops - Part 3: Interactive Demo</h1>
+        <p class="description">
+            This is part 3 of the PID tutorial series. See
+            <a href="https://www.youtube.com/watch?v=l03SioQ9ySg" target="_blank">Part 1</a> and
+            <a href="https://www.youtube.com/watch?v=sDd4VOpOnnA" target="_blank">Part 2</a> on YouTube.
+            Click on the simulation to set a target altitude. The PID controller adjusts thrust to make the helicopter hover at that height, fighting against gravity.
+        </p>
+
+        <div class="viz-panel">
+            <h3>Helicopter Hover (click to set altitude)</h3>
+            <canvas id="sim-canvas"></canvas>
+
+            <h3 style="margin-top: 15px;">Response Graph</h3>
+            <canvas id="graph-canvas"></canvas>
+            <div class="graph-legend">
+                <div class="legend-item">
+                    <div class="legend-color" style="background: #e74c3c;"></div>
+                    <span>Setpoint</span>
+                </div>
+                <div class="legend-item">
+                    <div class="legend-color" style="background: #3498db;"></div>
+                    <span>Position</span>
+                </div>
+                <div class="legend-item">
+                    <div class="legend-color" style="background: #95a5a6; opacity: 0.5;"></div>
+                    <span>Error</span>
+                </div>
+            </div>
+        </div>
+
+        <div class="control-panel">
+            <h3>PID Tuning</h3>
+
+            <div class="control-group p-control">
+                <label>
+                    <span>P (Proportional)</span>
+                    <span class="value" id="p-value">5.0</span>
+                </label>
+                <input type="range" id="p-slider" min="0" max="20" step="0.5" value="5">
+                <div class="hint">Response strength. Higher = faster but may oscillate.</div>
+            </div>
+
+            <div class="control-group i-control">
+                <label>
+                    <span>I (Integral)</span>
+                    <span class="value" id="i-value">0.10</span>
+                </label>
+                <input type="range" id="i-slider" min="0" max="1" step="0.01" value="0.1">
+                <div class="hint">Eliminates steady-state error. Too high = overshoot.</div>
+            </div>
+
+            <div class="control-group d-control">
+                <label>
+                    <span>D (Derivative)</span>
+                    <span class="value" id="d-value">0.0</span>
+                </label>
+                <input type="range" id="d-slider" min="0" max="5" step="0.05" value="0">
+                <div class="hint">Dampens oscillation. Predicts future error.</div>
+            </div>
+
+            <div class="control-group fan-control">
+                <label>
+                    <span>Wind Force</span>
+                    <span class="value" id="fan-value">0.0</span>
+                </label>
+                <input type="range" id="fan-slider" min="-10" max="10" step="0.5" value="0">
+                <div class="hint">Vertical gust. Creates steady-state error.</div>
+            </div>
+
+            <div class="button-group">
+                <button class="primary" id="disturbance-btn">Apply Disturbance</button>
+                <button class="secondary" id="reset-btn">Reset Position</button>
+                <button class="secondary" id="clear-graph-btn">Clear Graph</button>
+                <button class="danger" id="reset-all-btn">Reset All</button>
+            </div>
+
+            <div class="presets">
+                <h4>Presets</h4>
+                <div class="preset-buttons">
+                    <button id="preset-p-only">P Only</button>
+                    <button id="preset-pi">PI</button>
+                    <button id="preset-pd">PD</button>
+                    <button id="preset-tuned">Well Tuned</button>
+                    <button id="preset-oscillate">Oscillate</button>
+                    <button id="preset-sluggish">Sluggish</button>
+                </div>
+            </div>
+
+            <div class="stats">
+                <h4>Current State</h4>
+                <div class="stat-row">
+                    <span class="label">Position:</span>
+                    <span class="value" id="stat-position">0.00</span>
+                </div>
+                <div class="stat-row">
+                    <span class="label">Setpoint:</span>
+                    <span class="value" id="stat-setpoint">0.00</span>
+                </div>
+                <div class="stat-row">
+                    <span class="label">Error:</span>
+                    <span class="value" id="stat-error">0.00</span>
+                </div>
+                <div class="stat-row">
+                    <span class="label">Thrust (PID out):</span>
+                    <span class="value" id="stat-output">0.00</span>
+                </div>
+            </div>
+        </div>
+
+        <div class="instructions">
+            <h3>How to Use This Demo</h3>
+            <ul>
+                <li><strong>Click on the simulation</strong> to set a target altitude (red dashed line).</li>
+                <li><strong>Adjust P</strong> first: Increase until the helicopter responds quickly but starts to oscillate.</li>
+                <li><strong>Add D</strong> to dampen oscillations and smooth the approach.</li>
+                <li><strong>Add I</strong> if there's steady-state error (helicopter hovers below target due to gravity/wind).</li>
+                <li><strong>Wind</strong> adds a constant vertical force, creating steady-state error.</li>
+                <li><strong>Apply Disturbance</strong> to test how well your tuning rejects sudden gusts.</li>
+            </ul>
+        </div>
+    </div>
+
+    <script>
+    (function() {
+        'use strict';
+
+        // ============================================================
+        // Configuration
+        // ============================================================
+
+        const CONFIG = {
+            // Physics
+            friction: 0,          // No friction - pure undamped system
+            maxForce: 50,         // Limit PID output
+            dt: 1 / 60,           // Time step (60 FPS)
+
+            // Simulation bounds (normalized -1 to 1, where 1 is top, -1 is bottom)
+            minPos: -1,
+            maxPos: 1,
+
+            // Graph
+            graphHistory: 900,    // Number of points to show
+
+            // Disturbance
+            disturbanceForce: 15,
+
+            // Fan (constant force for steady-state error demo)
+            maxFanForce: 10,
+
+            // Physics constants
+            gravity: 1,           // Fixed gravity (low so helicopter has plenty of lift)
+            mass: 1.0             // Fixed mass
+        };
+
+        // ============================================================
+        // State
+        // ============================================================
+
+        const state = {
+            // PID gains
+            kP: 5.0,
+            kI: 0.1,
+            kD: 0.0,
+
+            // System state
+            position: 0,
+            velocity: 0,
+            setpoint: 0.5,
+
+            // PID state
+            integral: 0,
+            lastError: 0,
+            output: 0,
+
+            // Fan force
+            fanForce: 0,
+
+            // Graph history
+            history: {
+                position: [],
+                setpoint: [],
+                error: []
+            },
+
+            // Animation
+            running: true
+        };
+
+        // ============================================================
+        // DOM Elements
+        // ============================================================
+
+        const simCanvas = document.getElementById('sim-canvas');
+        const graphCanvas = document.getElementById('graph-canvas');
+        const simCtx = simCanvas.getContext('2d');
+        const graphCtx = graphCanvas.getContext('2d');
+
+        const pSlider = document.getElementById('p-slider');
+        const iSlider = document.getElementById('i-slider');
+        const dSlider = document.getElementById('d-slider');
+        const fanSlider = document.getElementById('fan-slider');
+        const pValue = document.getElementById('p-value');
+        const iValue = document.getElementById('i-value');
+        const dValue = document.getElementById('d-value');
+        const fanValue = document.getElementById('fan-value');
+
+        const statPosition = document.getElementById('stat-position');
+        const statSetpoint = document.getElementById('stat-setpoint');
+        const statError = document.getElementById('stat-error');
+        const statOutput = document.getElementById('stat-output');
+
+        // ============================================================
+        // Canvas Setup
+        // ============================================================
+
+        function resizeCanvases() {
+            const dpr = window.devicePixelRatio || 1;
+
+            // Simulation canvas
+            const simRect = simCanvas.getBoundingClientRect();
+            simCanvas.width = simRect.width * dpr;
+            simCanvas.height = simRect.height * dpr;
+            simCtx.scale(dpr, dpr);
+
+            // Graph canvas
+            const graphRect = graphCanvas.getBoundingClientRect();
+            graphCanvas.width = graphRect.width * dpr;
+            graphCanvas.height = graphRect.height * dpr;
+            graphCtx.scale(dpr, dpr);
+        }
+
+        // ============================================================
+        // PID Controller
+        // ============================================================
+
+        function computePID() {
+            const error = state.setpoint - state.position;
+
+            // Proportional term
+            const pTerm = state.kP * error;
+
+            // Integral term (with anti-windup)
+            state.integral += error * CONFIG.dt;
+            const maxIntegral = CONFIG.maxForce / (state.kI || 1);
+            state.integral = Math.max(-maxIntegral, Math.min(maxIntegral, state.integral));
+            const iTerm = state.kI * state.integral;
+
+            // Derivative term
+            const derivative = (error - state.lastError) / CONFIG.dt;
+            const dTerm = state.kD * derivative;
+            state.lastError = error;
+
+            // Combined output (clamped)
+            let output = pTerm + iTerm + dTerm;
+            output = Math.max(-CONFIG.maxForce, Math.min(CONFIG.maxForce, output));
+
+            state.output = output;
+            return output;
+        }
+
+        // ============================================================
+        // Physics Simulation
+        // ============================================================
+
+        function updatePhysics() {
+            // Compute PID control output (force) - this is the helicopter thrust
+            const pidForce = computePID();
+
+            // Total force = thrust (up) - gravity (down) + wind
+            // Gravity pulls down (negative), PID provides upward thrust (positive)
+            const totalForce = pidForce - CONFIG.gravity + state.fanForce;
+
+            // Apply force (F = ma, so a = F/m)
+            const acceleration = totalForce / CONFIG.mass;
+
+            // Update velocity with friction/damping
+            state.velocity += acceleration * CONFIG.dt;
+            state.velocity *= (1 - CONFIG.friction);
+
+            // Update position
+            state.position += state.velocity * CONFIG.dt;
+
+            // Clamp position to bounds (with bounce)
+            if (state.position < CONFIG.minPos) {
+                state.position = CONFIG.minPos;
+                state.velocity *= -0.5;
+            } else if (state.position > CONFIG.maxPos) {
+                state.position = CONFIG.maxPos;
+                state.velocity *= -0.5;
+            }
+
+            // Record history
+            const error = state.setpoint - state.position;
+            state.history.position.push(state.position);
+            state.history.setpoint.push(state.setpoint);
+            state.history.error.push(error);
+
+            // Trim history
+            if (state.history.position.length > CONFIG.graphHistory) {
+                state.history.position.shift();
+                state.history.setpoint.shift();
+                state.history.error.shift();
+            }
+        }
+
+        // ============================================================
+        // Rendering
+        // ============================================================
+
+        function drawSimulation() {
+            const w = simCanvas.getBoundingClientRect().width;
+            const h = simCanvas.getBoundingClientRect().height;
+
+            // Clear - sky gradient background
+            const skyGradient = simCtx.createLinearGradient(0, 0, 0, h);
+            skyGradient.addColorStop(0, '#87CEEB');
+            skyGradient.addColorStop(1, '#E0F6FF');
+            simCtx.fillStyle = skyGradient;
+            simCtx.fillRect(0, 0, w, h);
+
+            // Draw ground
+            simCtx.fillStyle = '#8B4513';
+            simCtx.fillRect(0, h - 15, w, 15);
+            simCtx.fillStyle = '#228B22';
+            simCtx.fillRect(0, h - 20, w, 5);
+
+            // Draw horizontal grid lines
+            simCtx.strokeStyle = 'rgba(255, 255, 255, 0.3)';
+            simCtx.lineWidth = 1;
+            for (let i = 0; i <= 10; i++) {
+                const y = (i / 10) * (h - 20);
+                simCtx.beginPath();
+                simCtx.moveTo(0, y);
+                simCtx.lineTo(w, y);
+                simCtx.stroke();
+            }
+
+            // Convert normalized position to pixel y (1 = top, -1 = bottom)
+            const posToY = (pos) => (h - 20) - ((pos + 1) / 2) * (h - 40) - 20;
+
+            // Draw setpoint (target line)
+            const setpointY = posToY(state.setpoint);
+            simCtx.strokeStyle = '#e74c3c';
+            simCtx.lineWidth = 3;
+            simCtx.setLineDash([8, 4]);
+            simCtx.beginPath();
+            simCtx.moveTo(50, setpointY);
+            simCtx.lineTo(w - 50, setpointY);
+            simCtx.stroke();
+            simCtx.setLineDash([]);
+
+            // Draw target label
+            simCtx.fillStyle = '#e74c3c';
+            simCtx.font = '12px sans-serif';
+            simCtx.textAlign = 'left';
+            simCtx.fillText('Target', 5, setpointY + 4);
+
+            // Draw helicopter (current position)
+            const heliX = w / 2;
+            const heliY = posToY(state.position);
+
+            // Helicopter body
+            simCtx.fillStyle = '#2980b9';
+            simCtx.beginPath();
+            simCtx.ellipse(heliX, heliY, 25, 15, 0, 0, Math.PI * 2);
+            simCtx.fill();
+
+            // Cockpit
+            simCtx.fillStyle = '#5dade2';
+            simCtx.beginPath();
+            simCtx.ellipse(heliX + 10, heliY - 3, 10, 8, 0, Math.PI, 2 * Math.PI);
+            simCtx.fill();
+
+            // Tail
+            simCtx.fillStyle = '#2980b9';
+            simCtx.beginPath();
+            simCtx.moveTo(heliX - 25, heliY);
+            simCtx.lineTo(heliX - 50, heliY - 5);
+            simCtx.lineTo(heliX - 50, heliY + 5);
+            simCtx.closePath();
+            simCtx.fill();
+
+            // Tail rotor
+            simCtx.strokeStyle = '#333';
+            simCtx.lineWidth = 2;
+            simCtx.beginPath();
+            simCtx.moveTo(heliX - 50, heliY - 10);
+            simCtx.lineTo(heliX - 50, heliY + 10);
+            simCtx.stroke();
+
+            // Main rotor (spinning effect)
+            const rotorPhase = (Date.now() / 50) % (Math.PI * 2);
+            simCtx.strokeStyle = '#555';
+            simCtx.lineWidth = 3;
+            simCtx.beginPath();
+            simCtx.moveTo(heliX - 40 * Math.cos(rotorPhase), heliY - 18);
+            simCtx.lineTo(heliX + 40 * Math.cos(rotorPhase), heliY - 18);
+            simCtx.stroke();
+
+            // Rotor hub
+            simCtx.fillStyle = '#333';
+            simCtx.beginPath();
+            simCtx.arc(heliX, heliY - 18, 4, 0, Math.PI * 2);
+            simCtx.fill();
+
+            // Draw thrust arrow (PID output visualization)
+            if (Math.abs(state.output) > 0.5) {
+                const arrowLen = (state.output / CONFIG.maxForce) * 50;
+                const arrowStartY = heliY + 20;
+                const arrowEndY = arrowStartY + arrowLen;
+
+                simCtx.strokeStyle = '#27ae60';
+                simCtx.lineWidth = 4;
+                simCtx.beginPath();
+                simCtx.moveTo(heliX, arrowStartY);
+                simCtx.lineTo(heliX, arrowEndY);
+                simCtx.stroke();
+
+                // Arrow head (points down for thrust pushing up)
+                const headSize = 10;
+                simCtx.fillStyle = '#27ae60';
+                simCtx.beginPath();
+                simCtx.moveTo(heliX, arrowEndY);
+                simCtx.lineTo(heliX - headSize / 2, arrowEndY - (arrowLen > 0 ? headSize : -headSize));
+                simCtx.lineTo(heliX + headSize / 2, arrowEndY - (arrowLen > 0 ? headSize : -headSize));
+                simCtx.closePath();
+                simCtx.fill();
+
+                // Thrust label
+                simCtx.fillStyle = '#27ae60';
+                simCtx.font = '10px sans-serif';
+                simCtx.textAlign = 'center';
+                simCtx.fillText('Thrust', heliX, arrowEndY + (arrowLen > 0 ? 15 : -5));
+            }
+
+            // Draw gravity arrow
+            if (CONFIG.gravity > 0.1) {
+                const gravArrowLen = 30;
+                simCtx.strokeStyle = '#34495e';
+                simCtx.lineWidth = 3;
+                simCtx.beginPath();
+                simCtx.moveTo(heliX + 40, heliY);
+                simCtx.lineTo(heliX + 40, heliY + gravArrowLen);
+                simCtx.stroke();
+
+                // Arrow head
+                simCtx.fillStyle = '#34495e';
+                simCtx.beginPath();
+                simCtx.moveTo(heliX + 40, heliY + gravArrowLen);
+                simCtx.lineTo(heliX + 35, heliY + gravArrowLen - 8);
+                simCtx.lineTo(heliX + 45, heliY + gravArrowLen - 8);
+                simCtx.closePath();
+                simCtx.fill();
+
+                simCtx.font = '10px sans-serif';
+                simCtx.textAlign = 'left';
+                simCtx.fillText('g', heliX + 50, heliY + gravArrowLen / 2 + 4);
+            }
+
+            // Position labels on right side
+            simCtx.fillStyle = '#666';
+            simCtx.font = '11px sans-serif';
+            simCtx.textAlign = 'right';
+            simCtx.fillText('+1', w - 5, 25);
+            simCtx.fillText('0', w - 5, (h - 20) / 2 + 4);
+            simCtx.fillText('-1', w - 5, h - 25);
+
+            // Draw wind effect if active (vertical arrows)
+            if (Math.abs(state.fanForce) > 0.1) {
+                const windDir = state.fanForce > 0 ? -1 : 1;  // positive force = upward, negative = downward
+                const windStrength = Math.abs(state.fanForce) / CONFIG.maxFanForce;
+                const numLines = Math.ceil(windStrength * 3) + 2;
+
+                simCtx.strokeStyle = 'rgba(155, 89, 182, 0.6)';
+                simCtx.lineWidth = 2;
+
+                const startY = windDir < 0 ? 10 : h - 30;
+                const lineLen = (25 + windStrength * 30) * windDir;
+
+                for (let i = 0; i < numLines; i++) {
+                    const xPos = 15 + i * 20;
+                    if (xPos > w - 15) break;
+
+                    simCtx.beginPath();
+                    simCtx.moveTo(xPos, startY);
+                    simCtx.lineTo(xPos, startY + lineLen);
+                    simCtx.stroke();
+
+                    // Arrow head
+                    const endY = startY + lineLen;
+                    simCtx.fillStyle = 'rgba(155, 89, 182, 0.6)';
+                    simCtx.beginPath();
+                    simCtx.moveTo(xPos, endY);
+                    simCtx.lineTo(xPos - 4, endY - windDir * 6);
+                    simCtx.lineTo(xPos + 4, endY - windDir * 6);
+                    simCtx.closePath();
+                    simCtx.fill();
+                }
+
+                simCtx.fillStyle = '#9b59b6';
+                simCtx.font = '11px sans-serif';
+                simCtx.textAlign = 'center';
+                simCtx.fillText(state.fanForce > 0 ? 'Updraft' : 'Downdraft', w / 2, windDir < 0 ? 25 : h - 35);
+            }
+        }
+
+        function drawGraph() {
+            const w = graphCanvas.getBoundingClientRect().width;
+            const h = graphCanvas.getBoundingClientRect().height;
+
+            // Clear
+            graphCtx.fillStyle = '#fafafa';
+            graphCtx.fillRect(0, 0, w, h);
+
+            // Draw zero line
+            const centerY = h / 2;
+            graphCtx.strokeStyle = '#ddd';
+            graphCtx.lineWidth = 1;
+            graphCtx.beginPath();
+            graphCtx.moveTo(0, centerY);
+            graphCtx.lineTo(w, centerY);
+            graphCtx.stroke();
+
+            // Draw +1/-1 lines
+            graphCtx.strokeStyle = '#eee';
+            graphCtx.setLineDash([4, 4]);
+            graphCtx.beginPath();
+            graphCtx.moveTo(0, 20);
+            graphCtx.lineTo(w, 20);
+            graphCtx.moveTo(0, h - 20);
+            graphCtx.lineTo(w, h - 20);
+            graphCtx.stroke();
+            graphCtx.setLineDash([]);
+
+            // Y-axis labels
+            graphCtx.fillStyle = '#999';
+            graphCtx.font = '10px sans-serif';
+            graphCtx.textAlign = 'left';
+            graphCtx.fillText('+1', 5, 25);
+            graphCtx.fillText('0', 5, centerY + 4);
+            graphCtx.fillText('-1', 5, h - 15);
+
+            const len = state.history.position.length;
+            if (len < 2) return;
+
+            // Convert normalized value to Y pixel
+            const valToY = (val) => centerY - (val * (centerY - 20));
+
+            // Draw error area (filled)
+            graphCtx.fillStyle = 'rgba(149, 165, 176, 0.2)';
+            graphCtx.beginPath();
+            graphCtx.moveTo(0, centerY);
+            for (let i = 0; i < len; i++) {
+                const x = (i / (CONFIG.graphHistory - 1)) * w;
+                const y = valToY(state.history.error[i]);
+                graphCtx.lineTo(x, y);
+            }
+            graphCtx.lineTo(w, centerY);
+            graphCtx.closePath();
+            graphCtx.fill();
+
+            // Draw setpoint line
+            graphCtx.strokeStyle = '#e74c3c';
+            graphCtx.lineWidth = 2;
+            graphCtx.beginPath();
+            for (let i = 0; i < len; i++) {
+                const x = (i / (CONFIG.graphHistory - 1)) * w;
+                const y = valToY(state.history.setpoint[i]);
+                if (i === 0) {
+                    graphCtx.moveTo(x, y);
+                } else {
+                    graphCtx.lineTo(x, y);
+                }
+            }
+            graphCtx.stroke();
+
+            // Draw position line
+            graphCtx.strokeStyle = '#3498db';
+            graphCtx.lineWidth = 2;
+            graphCtx.beginPath();
+            for (let i = 0; i < len; i++) {
+                const x = (i / (CONFIG.graphHistory - 1)) * w;
+                const y = valToY(state.history.position[i]);
+                if (i === 0) {
+                    graphCtx.moveTo(x, y);
+                } else {
+                    graphCtx.lineTo(x, y);
+                }
+            }
+            graphCtx.stroke();
+        }
+
+        function updateStats() {
+            const error = state.setpoint - state.position;
+            statPosition.textContent = state.position.toFixed(3);
+            statSetpoint.textContent = state.setpoint.toFixed(3);
+            statError.textContent = error.toFixed(3);
+            statOutput.textContent = state.output.toFixed(2);
+        }
+
+        // ============================================================
+        // Animation Loop
+        // ============================================================
+
+        function animate() {
+            if (state.running) {
+                updatePhysics();
+            }
+            drawSimulation();
+            drawGraph();
+            updateStats();
+            requestAnimationFrame(animate);
+        }
+
+        // ============================================================
+        // Event Handlers
+        // ============================================================
+
+        function handleSliderChange() {
+            state.kP = parseFloat(pSlider.value);
+            state.kI = parseFloat(iSlider.value);
+            state.kD = parseFloat(dSlider.value);
+            state.fanForce = parseFloat(fanSlider.value);
+
+            pValue.textContent = state.kP.toFixed(1);
+            iValue.textContent = state.kI.toFixed(2);
+            dValue.textContent = state.kD.toFixed(2);
+            fanValue.textContent = state.fanForce.toFixed(1);
+
+            // Reset integral when I gain changes to 0
+            if (state.kI === 0) {
+                state.integral = 0;
+            }
+        }
+
+        function handleCanvasClick(e) {
+            const rect = simCanvas.getBoundingClientRect();
+            const y = e.clientY - rect.top;
+            const h = rect.height;
+
+            // Convert click position to normalized setpoint (-1 to 1)
+            // Top of canvas = +1, bottom = -1
+            state.setpoint = 1 - (y / (h - 20)) * 2;
+            state.setpoint = Math.max(-0.95, Math.min(0.95, state.setpoint));
+        }
+
+        function applyDisturbance() {
+            // Apply a random impulse
+            const direction = Math.random() > 0.5 ? 1 : -1;
+            state.velocity += direction * CONFIG.disturbanceForce * CONFIG.dt * 10;
+        }
+
+        function resetPosition() {
+            state.position = 0;
+            state.velocity = 0;
+            state.integral = 0;
+            state.lastError = 0;
+        }
+
+        function clearGraph() {
+            state.history.position = [];
+            state.history.setpoint = [];
+            state.history.error = [];
+        }
+
+        function resetAll() {
+            // Reset PID gains to initial values
+            state.kP = 5.0;
+            state.kI = 0.1;
+            state.kD = 0;
+            state.fanForce = 0;
+
+            // Update sliders
+            pSlider.value = state.kP;
+            iSlider.value = state.kI;
+            dSlider.value = state.kD;
+            fanSlider.value = state.fanForce;
+
+            // Update displays
+            pValue.textContent = state.kP.toFixed(1);
+            iValue.textContent = state.kI.toFixed(2);
+            dValue.textContent = state.kD.toFixed(2);
+            fanValue.textContent = state.fanForce.toFixed(1);
+
+            // Reset system state
+            state.position = 0;
+            state.velocity = 0;
+            state.setpoint = 0.5;
+            state.integral = 0;
+            state.lastError = 0;
+
+            // Clear graph
+            clearGraph();
+        }
+
+        function applyPreset(kP, kI, kD) {
+            pSlider.value = kP;
+            iSlider.value = kI;
+            dSlider.value = kD;
+            handleSliderChange();
+            resetPosition();
+            clearGraph();
+        }
+
+        // ============================================================
+        // Initialize
+        // ============================================================
+
+        function init() {
+            resizeCanvases();
+            window.addEventListener('resize', resizeCanvases);
+
+            // Slider events
+            pSlider.addEventListener('input', handleSliderChange);
+            iSlider.addEventListener('input', handleSliderChange);
+            dSlider.addEventListener('input', handleSliderChange);
+            fanSlider.addEventListener('input', handleSliderChange);
+
+            // Canvas click
+            simCanvas.addEventListener('click', handleCanvasClick);
+
+            // Buttons
+            document.getElementById('disturbance-btn').addEventListener('click', applyDisturbance);
+            document.getElementById('reset-btn').addEventListener('click', resetPosition);
+            document.getElementById('clear-graph-btn').addEventListener('click', clearGraph);
+            document.getElementById('reset-all-btn').addEventListener('click', resetAll);
+
+            // Presets
+            document.getElementById('preset-p-only').addEventListener('click', () => applyPreset(6.0, 0, 0));
+            document.getElementById('preset-pi').addEventListener('click', () => applyPreset(5.0, 0.1, 0));
+            document.getElementById('preset-pd').addEventListener('click', () => applyPreset(6.0, 0, 2.0));
+            document.getElementById('preset-tuned').addEventListener('click', () => applyPreset(8.0, 0.05, 3.0));
+            document.getElementById('preset-oscillate').addEventListener('click', () => applyPreset(15.0, 0, 0));
+            document.getElementById('preset-sluggish').addEventListener('click', () => applyPreset(2.0, 0, 0));
+
+            // Initial slider values
+            handleSliderChange();
+
+            // Start animation
+            animate();
+        }
+
+        init();
+    })();
+    </script>
+</body>
+</html>
