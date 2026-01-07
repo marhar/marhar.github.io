@@ -394,7 +394,7 @@
                     <span>I (Integral)</span>
                     <span class="value" id="i-value">0.00</span>
                 </label>
-                <input type="range" id="i-slider" min="0" max="1" step="0.01" value="0">
+                <input type="range" id="i-slider" min="0" max="2" step="0.01" value="0">
                 <div class="hint">Corrects for wind/disturbances. Too high = overshoot.</div>
             </div>
 
@@ -412,7 +412,7 @@
                     <span>Wind Force</span>
                     <span class="value" id="fan-value">0.0</span>
                 </label>
-                <input type="range" id="fan-slider" min="-10" max="10" step="0.5" value="0">
+                <input type="range" id="fan-slider" min="-3" max="3" step="0.1" value="0">
                 <div class="hint">Vertical gust. Creates steady-state error.</div>
             </div>
 
@@ -494,7 +494,7 @@
             disturbanceForce: 15,
 
             // Fan (constant force for steady-state error demo)
-            maxFanForce: 10,
+            maxFanForce: 3,
 
             // Physics constants
             gravity: 1,           // Fixed gravity (low so helicopter has plenty of lift)
