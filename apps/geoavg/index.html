@@ -5,28 +5,16 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Geographic Center Calculator</title>
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <link rel="stylesheet" href="../app-theme.css">
     <style>
         :root {
-            --color-primary: #3498db;
-            --color-primary-dark: #2980b9;
-            --color-danger: #e74c3c;
-            --color-danger-dark: #c0392b;
-            --color-text: #333;
-            --color-text-light: #666;
-            --color-text-muted: #888;
-            --color-bg: #f8f9fa;
-            --color-border: #eee;
+            /* App-specific overrides */
             --font-mono: ui-monospace, SFMono-Regular, 'SF Mono', Menlo, monospace;
         }
 
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-        }
-
+        /* body base styles are in app-theme.css, override for full-page map */
         body {
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: transparent;
         }
 
         /* Map and Globe containers */
@@ -51,7 +39,7 @@
             z-index: 1000;
             background: white;
             padding: 15px;
-            border-radius: 8px;
+            border-radius: var(--border-radius);
             box-shadow: 0 2px 10px rgba(0, 0, 0, 0.2);
             max-width: 300px;
             max-height: 90vh;
@@ -111,7 +99,7 @@
         .search-container {
             margin-bottom: 15px;
             padding-bottom: 15px;
-            border-bottom: 1px solid var(--color-border);
+            border-bottom: 1px solid var(--color-border-light);
         }
 
         .search-container input {
@@ -156,7 +144,7 @@
         /* Coordinate list */
         #coord-list {
             margin-top: 15px;
-            border-top: 1px solid var(--color-border);
+            border-top: 1px solid var(--color-border-light);
             padding-top: 10px;
         }
 

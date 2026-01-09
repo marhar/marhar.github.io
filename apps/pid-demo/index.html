@@ -4,31 +4,14 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>PID Controller Demo</title>
+    <link rel="stylesheet" href="../app-theme.css">
     <style>
         :root {
-            --color-primary: #3498db;
-            --color-primary-dark: #2980b9;
-            --color-danger: #e74c3c;
-            --color-success: #27ae60;
-            --color-warning: #f39c12;
-            --color-text: #333;
-            --color-text-light: #666;
-            --color-bg: #f8f9fa;
-            --color-border: #ddd;
+            /* App-specific overrides and additions */
             --font-mono: ui-monospace, SFMono-Regular, 'SF Mono', Menlo, monospace;
         }
 
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-        }
-
-        body {
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-            background: var(--color-bg);
-            min-height: 100vh;
-        }
+        /* body base styles are in app-theme.css */
 
         .container {
             display: flex;
@@ -62,7 +45,7 @@
             flex: 1;
             min-width: 400px;
             background: white;
-            border-radius: 8px;
+            border-radius: var(--border-radius);
             box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
             padding: 15px;
         }
@@ -76,8 +59,8 @@
         #sim-canvas {
             width: 250px;
             height: 450px;
-            border: 1px solid var(--color-border);
-            border-radius: 4px;
+            border: 1px solid var(--color-border-light);
+            border-radius: var(--border-radius);
             cursor: crosshair;
             display: block;
             margin: 0 auto;
@@ -86,7 +69,7 @@
         #graph-canvas {
             width: 100%;
             height: 200px;
-            border: 1px solid var(--color-border);
+            border: 1px solid var(--color-border-light);
             border-radius: 4px;
             margin-top: 15px;
         }
@@ -113,7 +96,7 @@
         .control-panel {
             width: 300px;
             background: white;
-            border-radius: 8px;
+            border-radius: var(--border-radius);
             box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
             padding: 15px;
         }
@@ -123,7 +106,7 @@
             color: var(--color-text);
             margin-bottom: 15px;
             padding-bottom: 10px;
-            border-bottom: 1px solid var(--color-border);
+            border-bottom: 1px solid var(--color-border-light);
         }
 
         .control-group {
@@ -212,7 +195,7 @@
             gap: 8px;
             margin-top: 20px;
             padding-top: 15px;
-            border-top: 1px solid var(--color-border);
+            border-top: 1px solid var(--color-border-light);
         }
 
         button {
@@ -255,7 +238,7 @@
         .presets {
             margin-top: 20px;
             padding-top: 15px;
-            border-top: 1px solid var(--color-border);
+            border-top: 1px solid var(--color-border-light);
         }
 
         .presets h4 {
@@ -277,7 +260,7 @@
             font-size: 12px;
             background: var(--color-bg);
             color: var(--color-text);
-            border: 1px solid var(--color-border);
+            border: 1px solid var(--color-border-light);
         }
 
         .preset-buttons button:hover {
@@ -288,7 +271,7 @@
         .stats {
             margin-top: 20px;
             padding-top: 15px;
-            border-top: 1px solid var(--color-border);
+            border-top: 1px solid var(--color-border-light);
         }
 
         .stats h4 {
@@ -317,7 +300,7 @@
         .instructions {
             width: 100%;
             background: white;
-            border-radius: 8px;
+            border-radius: var(--border-radius);
             box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
             padding: 15px;
             margin-top: 10px;
