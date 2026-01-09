@@ -393,6 +393,13 @@
         }
 
         function renderDistributionChart(results) {
+            // Get computed CSS colors for theme support
+            const styles = getComputedStyle(document.documentElement);
+            const bgColor = styles.getPropertyValue('--color-bg-white').trim() || '#fff';
+            const textColor = styles.getPropertyValue('--color-text').trim() || '#212121';
+            const successColor = styles.getPropertyValue('--color-success').trim() || '#2e7d32';
+            const dangerColor = styles.getPropertyValue('--color-danger').trim() || '#c62828';
+
             const investNWs = results.map(r => r.investNW);
             const payoffNWs = results.map(r => r.payoffNW);
 
@@ -401,7 +408,7 @@
                 name: 'Invest Strategy',
                 type: 'histogram',
                 opacity: 0.7,
-                marker: { color: '#28a745' }
+                marker: { color: successColor }
             };
 
             const trace2 = {
@@ -409,39 +416,52 @@
                 name: 'Payoff Strategy',
                 type: 'histogram',
                 opacity: 0.7,
-                marker: { color: '#dc3545' }
+                marker: { color: dangerColor }
             };
 
             const layout = {
+                paper_bgcolor: bgColor,
+                plot_bgcolor: bgColor,
+                font: { color: textColor },
                 barmode: 'overlay',
-                xaxis: { title: 'Final Net Worth ($)' },
-                yaxis: { title: 'Number of Periods' },
-                legend: { x: 0.7, y: 0.95 }
+                xaxis: { title: 'Final Net Worth ($)', color: textColor },
+                yaxis: { title: 'Number of Periods', color: textColor },
+                legend: { x: 0.7, y: 0.95, font: { color: textColor } }
             };
 
             Plotly.newPlot('distributionChart', [trace1, trace2], layout, { responsive: true });
         }
 
         function renderAdvantageChart(results) {
+            // Get computed CSS colors for theme support
+            const styles = getComputedStyle(document.documentElement);
+            const bgColor = styles.getPropertyValue('--color-bg-white').trim() || '#fff';
+            const textColor = styles.getPropertyValue('--color-text').trim() || '#212121';
+            const successColor = styles.getPropertyValue('--color-success').trim() || '#2e7d32';
+            const dangerColor = styles.getPropertyValue('--color-danger').trim() || '#c62828';
+
             const advantages = results.map(r => r.advantage);
 
             const trace = {
                 x: advantages,
                 type: 'histogram',
                 marker: {
-                    color: advantages.map(a => a > 0 ? '#28a745' : '#dc3545')
+                    color: advantages.map(a => a > 0 ? successColor : dangerColor)
                 }
             };
 
             const layout = {
-                xaxis: { title: 'Advantage (Invest − Payoff, $)' },
-                yaxis: { title: 'Number of Periods' },
+                paper_bgcolor: bgColor,
+                plot_bgcolor: bgColor,
+                font: { color: textColor },
+                xaxis: { title: 'Advantage (Invest − Payoff, $)', color: textColor },
+                yaxis: { title: 'Number of Periods', color: textColor },
                 shapes: [{
                     type: 'line',
                     x0: 0, x1: 0,
                     y0: 0, y1: 1,
                     yref: 'paper',
-                    line: { color: 'black', width: 2, dash: 'dash' }
+                    line: { color: textColor, width: 2, dash: 'dash' }
                 }]
             };
 

@@ -303,10 +303,25 @@
         }
 
         /**
+         * Get theme colors for Plotly charts
+         */
+        function getThemeColors() {
+            const styles = getComputedStyle(document.documentElement);
+            return {
+                bgColor: styles.getPropertyValue('--color-bg-white').trim() || '#fff',
+                textColor: styles.getPropertyValue('--color-text').trim() || '#212121',
+                successColor: styles.getPropertyValue('--color-success').trim() || '#2e7d32',
+                dangerColor: styles.getPropertyValue('--color-danger').trim() || '#c62828',
+                warningColor: styles.getPropertyValue('--color-warning').trim() || '#f57c00'
+            };
+        }
+
+        /**
          * Render 3D surface plot
          */
         function render3DPlot(data) {
             const { rates, terms, matrix } = data;
+            const colors = getThemeColors();
 
             // Transpose matrix for Plotly (x=rates, y=terms, z=values)
             const z = matrix;
@@ -317,23 +332,27 @@
                 y: terms,
                 z: z,
                 colorscale: [
-                    [0, '#28a745'],
+                    [0, colors.successColor],
                     [0.25, '#7cb342'],
-                    [0.5, '#fdd835'],
+                    [0.5, colors.warningColor],
                     [0.75, '#fb8c00'],
-                    [1, '#e53935']
+                    [1, colors.dangerColor]
                 ],
                 colorbar: {
                     title: 'Payoff Win %',
-                    ticksuffix: '%'
+                    ticksuffix: '%',
+                    tickfont: { color: colors.textColor },
+                    titlefont: { color: colors.textColor }
                 }
             };
 
             const layout = {
+                paper_bgcolor: colors.bgColor,
+                font: { color: colors.textColor },
                 scene: {
-                    xaxis: { title: 'Mortgage Rate (%)' },
-                    yaxis: { title: 'Term (Years)' },
-                    zaxis: { title: 'Payoff Win Rate (%)', range: [0, 100] },
+                    xaxis: { title: 'Mortgage Rate (%)', color: colors.textColor },
+                    yaxis: { title: 'Term (Years)', color: colors.textColor },
+                    zaxis: { title: 'Payoff Win Rate (%)', range: [0, 100], color: colors.textColor },
                     camera: {
                         eye: { x: 1.5, y: -1.5, z: 0.8 }
                     }
@@ -349,6 +368,7 @@
          */
         function renderHeatmap(data) {
             const { rates, terms, matrix } = data;
+            const colors = getThemeColors();
 
             const trace = {
                 type: 'heatmap',
@@ -356,22 +376,27 @@
                 y: terms.map(t => t + ' yr'),
                 z: matrix,
                 colorscale: [
-                    [0, '#28a745'],
+                    [0, colors.successColor],
                     [0.25, '#7cb342'],
-                    [0.5, '#fdd835'],
+                    [0.5, colors.warningColor],
                     [0.75, '#fb8c00'],
-                    [1, '#e53935']
+                    [1, colors.dangerColor]
                 ],
                 colorbar: {
                     title: 'Payoff Win %',
-                    ticksuffix: '%'
+                    ticksuffix: '%',
+                    tickfont: { color: colors.textColor },
+                    titlefont: { color: colors.textColor }
                 },
                 hovertemplate: 'Rate: %{x}<br>Term: %{y}<br>Payoff Wins: %{z:.1f}%<extra></extra>'
             };
 
             const layout = {
-                xaxis: { title: 'Mortgage Rate', side: 'top' },
-                yaxis: { title: 'Term Length', autorange: 'reversed' },
+                paper_bgcolor: colors.bgColor,
+                plot_bgcolor: colors.bgColor,
+                font: { color: colors.textColor },
+                xaxis: { title: 'Mortgage Rate', side: 'top', color: colors.textColor },
+                yaxis: { title: 'Term Length', autorange: 'reversed', color: colors.textColor },
                 margin: { l: 60, r: 20, t: 60, b: 20 }
             };
 

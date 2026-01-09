@@ -474,25 +474,36 @@
         }
 
         function renderDrawdownChart(drawdowns) {
+            // Get computed CSS colors for theme support
+            const styles = getComputedStyle(document.documentElement);
+            const bgColor = styles.getPropertyValue('--color-bg-white').trim() || '#fff';
+            const textColor = styles.getPropertyValue('--color-text').trim() || '#212121';
+            const dangerColor = styles.getPropertyValue('--color-danger').trim() || '#c62828';
+            const warningColor = styles.getPropertyValue('--color-warning').trim() || '#f57c00';
+            const successColor = styles.getPropertyValue('--color-success').trim() || '#2e7d32';
+
             const trace = {
                 x: drawdowns,
                 type: 'histogram',
                 marker: {
-                    color: drawdowns.map(d => d > 50 ? '#dc3545' : d > 30 ? '#fd7e14' : '#28a745')
+                    color: drawdowns.map(d => d > 50 ? dangerColor : d > 30 ? warningColor : successColor)
                 },
                 xbins: { size: 5 }
             };
 
             const layout = {
-                xaxis: { title: 'Maximum Drawdown (%)', ticksuffix: '%' },
-                yaxis: { title: 'Number of Periods' },
+                paper_bgcolor: bgColor,
+                plot_bgcolor: bgColor,
+                font: { color: textColor },
+                xaxis: { title: 'Maximum Drawdown (%)', ticksuffix: '%', color: textColor },
+                yaxis: { title: 'Number of Periods', color: textColor },
                 shapes: [
                     { type: 'line', x0: 50, x1: 50, y0: 0, y1: 1, yref: 'paper',
-                      line: { color: 'red', width: 2, dash: 'dash' } }
+                      line: { color: dangerColor, width: 2, dash: 'dash' } }
                 ],
                 annotations: [
                     { x: 50, y: 1, yref: 'paper', text: '50% crash', showarrow: false,
-                      font: { color: 'red' }, yanchor: 'bottom' }
+                      font: { color: dangerColor }, yanchor: 'bottom' }
                 ]
             };
 
