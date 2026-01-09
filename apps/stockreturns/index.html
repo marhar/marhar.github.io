@@ -7,9 +7,12 @@
     <link rel="stylesheet" href="simple.min.css">
     <link rel="stylesheet" href="../app-theme.css">
     <style>
-        /* Override for this app */
-        body { background: var(--color-bg-white); }
+        /* Override simple.min.css for this app */
+        body { background: var(--color-bg-white); display: block; }
         main { padding: 0 20px 20px; max-width: 1200px; margin: 0 auto; }
+        header.app-header { background: var(--color-bg-white); border-bottom: 1px solid var(--color-border-light); padding: 8px 20px; text-align: left; }
+        header.app-header h1 { font-size: 1.1rem; margin: 0; }
+        header.app-header p { margin: 0; }
         .summary-grid {
             display: grid;
             grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
@@ -171,10 +174,6 @@
             </div>
         </section>
     </main>
-
-    <footer>
-        <p>&copy; 2024 Mark Harrison | Data source: Yahoo Finance (^GSPC)</p>
-    </footer>
 
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
     <script src="sp500_data.js"></script>
