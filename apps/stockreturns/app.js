@@ -537,4 +537,10 @@ document.addEventListener('DOMContentLoaded', function() {
     if (startInput) {
         startInput.min = dataRange.firstDate + '-01';
     }
+
+    // Calculate with default parameters on page load
+    const form = document.getElementById('calculatorForm');
+    if (form) {
+        form.dispatchEvent(new Event('submit'));
+    }
 });
