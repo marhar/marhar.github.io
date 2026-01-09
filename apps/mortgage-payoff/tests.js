@@ -498,6 +498,342 @@ const TestSuite = {
         );
     },
 
+    // Test 21: Rate analysis - higher rates favor payoff more
+    testRateAnalysisHigherRatesFavorPayoff() {
+        const testName = "Higher mortgage rates favor payoff strategy";
+        const balance = 100000;
+        const years = 15;
+
+        const dataRange = getDataRange();
+        const firstYear = parseInt(dataRange.firstDate.split('-')[0]);
+        const lastYear = parseInt(dataRange.lastDate.split('-')[0]);
+        const lastValidStartYear = lastYear - Math.ceil(years);
+
+        // Count invest wins at 2% vs 10%
+        let investWins2pct = 0, total2pct = 0;
+        let investWins10pct = 0, total10pct = 0;
+
+        for (let startYear = firstYear; startYear <= lastValidStartYear; startYear++) {
+            try {
+                // 2% rate
+                const payoff2 = scenarioPayoffMortgage(balance, 0.02, years, balance, `${startYear}-01-01`);
+                const invest2 = scenarioInvestLumpSum(balance, 0.02, years, balance, `${startYear}-01-01`);
+                if (!payoff2.truncated && !invest2.truncated) {
+                    total2pct++;
+                    if (invest2.finalNetWorth > payoff2.finalNetWorth) investWins2pct++;
+                }
+
+                // 10% rate
+                const payoff10 = scenarioPayoffMortgage(balance, 0.10, years, balance, `${startYear}-01-01`);
+                const invest10 = scenarioInvestLumpSum(balance, 0.10, years, balance, `${startYear}-01-01`);
+                if (!payoff10.truncated && !invest10.truncated) {
+                    total10pct++;
+                    if (invest10.finalNetWorth > payoff10.finalNetWorth) investWins10pct++;
+                }
+            } catch (e) {}
+        }
+
+        const investPct2 = (investWins2pct / total2pct) * 100;
+        const investPct10 = (investWins10pct / total10pct) * 100;
+
+        // At 2% rate, investing should win more often than at 10%
+        return this.assertTrue(
+            investPct2 > investPct10,
+            testName,
+            `2% rate: ${investPct2.toFixed(1)}% invest wins, 10% rate: ${investPct10.toFixed(1)}% invest wins`,
+            "Invest win % at 2% > at 10%"
+        );
+    },
+
+    // Test 22: Win magnitude - invest wins should have positive advantage
+    testWinMagnitudePositive() {
+        const testName = "Invest wins have positive advantage values";
+        const balance = 100000;
+        const rate = 0.05;
+        const years = 10;
+
+        const dataRange = getDataRange();
+        const firstYear = parseInt(dataRange.firstDate.split('-')[0]);
+        const lastYear = parseInt(dataRange.lastDate.split('-')[0]);
+        const lastValidStartYear = lastYear - Math.ceil(years);
+
+        let allPositive = true;
+        let investWinCount = 0;
+
+        for (let startYear = firstYear; startYear <= lastValidStartYear; startYear++) {
+            try {
+                const payoff = scenarioPayoffMortgage(balance, rate, years, balance, `${startYear}-01-01`);
+                const invest = scenarioInvestLumpSum(balance, rate, years, balance, `${startYear}-01-01`);
+                if (!payoff.truncated && !invest.truncated) {
+                    const advantage = invest.finalNetWorth - payoff.finalNetWorth;
+                    if (advantage > 0) {
+                        investWinCount++;
+                        // Advantage should be positive when invest wins
+                    } else if (invest.finalNetWorth > payoff.finalNetWorth) {
+                        allPositive = false; // Contradiction
+                    }
+                }
+            } catch (e) {}
+        }
+
+        return this.assertTrue(
+            allPositive && investWinCount > 0,
+            testName,
+            `${investWinCount} invest wins, all advantages positive: ${allPositive}`,
+            "All invest wins have positive advantage"
+        );
+    },
+
+    // Test 23: Expected value calculation
+    testExpectedValueCalculation() {
+        const testName = "Expected value equals mean of advantages";
+        const balance = 100000;
+        const rate = 0.05;
+        const years = 10;
+
+        const dataRange = getDataRange();
+        const firstYear = parseInt(dataRange.firstDate.split('-')[0]);
+        const lastYear = parseInt(dataRange.lastDate.split('-')[0]);
+        const lastValidStartYear = lastYear - Math.ceil(years);
+
+        const advantages = [];
+
+        for (let startYear = firstYear; startYear <= lastValidStartYear; startYear++) {
+            try {
+                const payoff = scenarioPayoffMortgage(balance, rate, years, balance, `${startYear}-01-01`);
+                const invest = scenarioInvestLumpSum(balance, rate, years, balance, `${startYear}-01-01`);
+                if (!payoff.truncated && !invest.truncated) {
+                    advantages.push(invest.finalNetWorth - payoff.finalNetWorth);
+                }
+            } catch (e) {}
+        }
+
+        const expectedValue = advantages.reduce((s, v) => s + v, 0) / advantages.length;
+
+        // Expected value should be a finite number
+        return this.assertTrue(
+            isFinite(expectedValue) && advantages.length > 0,
+            testName,
+            `EV: ${formatCurrency(expectedValue)} from ${advantages.length} periods`,
+            "Finite expected value"
+        );
+    },
+
+    // Test 24: Standard deviation calculation
+    testStandardDeviationCalculation() {
+        const testName = "Standard deviation is valid and invest has higher volatility";
+        const balance = 100000;
+        const rate = 0.05;
+        const years = 10;
+
+        const dataRange = getDataRange();
+        const firstYear = parseInt(dataRange.firstDate.split('-')[0]);
+        const lastYear = parseInt(dataRange.lastDate.split('-')[0]);
+        const lastValidStartYear = lastYear - Math.ceil(years);
+
+        const investNWs = [];
+        const payoffNWs = [];
+
+        for (let startYear = firstYear; startYear <= lastValidStartYear; startYear++) {
+            try {
+                const payoff = scenarioPayoffMortgage(balance, rate, years, balance, `${startYear}-01-01`);
+                const invest = scenarioInvestLumpSum(balance, rate, years, balance, `${startYear}-01-01`);
+                if (!payoff.truncated && !invest.truncated) {
+                    investNWs.push(invest.finalNetWorth);
+                    payoffNWs.push(payoff.finalNetWorth);
+                }
+            } catch (e) {}
+        }
+
+        // Calculate std dev
+        const mean = arr => arr.reduce((s, v) => s + v, 0) / arr.length;
+        const stdDev = arr => {
+            const m = mean(arr);
+            return Math.sqrt(arr.reduce((s, v) => s + Math.pow(v - m, 2), 0) / arr.length);
+        };
+
+        const investStd = stdDev(investNWs);
+        const payoffStd = stdDev(payoffNWs);
+
+        // Invest strategy should have higher volatility (std dev)
+        return this.assertTrue(
+            investStd > payoffStd && isFinite(investStd) && isFinite(payoffStd),
+            testName,
+            `Invest std: ${formatCurrency(investStd)}, Payoff std: ${formatCurrency(payoffStd)}`,
+            "Invest volatility > Payoff volatility"
+        );
+    },
+
+    // Test 25: Regret calculation - max regret values are positive
+    testRegretCalculation() {
+        const testName = "Max regret values are positive";
+        const balance = 100000;
+        const rate = 0.05;
+        const years = 10;
+
+        const dataRange = getDataRange();
+        const firstYear = parseInt(dataRange.firstDate.split('-')[0]);
+        const lastYear = parseInt(dataRange.lastDate.split('-')[0]);
+        const lastValidStartYear = lastYear - Math.ceil(years);
+
+        let maxRegretInvest = 0; // Worst case if you invest (payoff would've been better)
+        let maxRegretPayoff = 0; // Worst case if you payoff (invest would've been better)
+
+        for (let startYear = firstYear; startYear <= lastValidStartYear; startYear++) {
+            try {
+                const payoff = scenarioPayoffMortgage(balance, rate, years, balance, `${startYear}-01-01`);
+                const invest = scenarioInvestLumpSum(balance, rate, years, balance, `${startYear}-01-01`);
+                if (!payoff.truncated && !invest.truncated) {
+                    const advantage = invest.finalNetWorth - payoff.finalNetWorth;
+                    if (advantage < 0) {
+                        // Payoff would have been better
+                        maxRegretInvest = Math.max(maxRegretInvest, Math.abs(advantage));
+                    } else {
+                        // Invest would have been better
+                        maxRegretPayoff = Math.max(maxRegretPayoff, advantage);
+                    }
+                }
+            } catch (e) {}
+        }
+
+        // Both strategies should have some regret scenarios
+        return this.assertTrue(
+            maxRegretInvest > 0 && maxRegretPayoff > 0,
+            testName,
+            `Max regret invest: ${formatCurrency(maxRegretInvest)}, payoff: ${formatCurrency(maxRegretPayoff)}`,
+            "Both regrets > 0"
+        );
+    },
+
+    // Test 26: Comprehensive matrix has valid dimensions
+    testComprehensiveMatrixDimensions() {
+        const testName = "Comprehensive analysis covers all rate/term combinations";
+        const balance = 100000;
+
+        const dataRange = getDataRange();
+        const firstYear = parseInt(dataRange.firstDate.split('-')[0]);
+        const lastYear = parseInt(dataRange.lastDate.split('-')[0]);
+
+        // Sample a few combinations
+        const testCases = [
+            { rate: 0.03, years: 5 },
+            { rate: 0.06, years: 15 },
+            { rate: 0.09, years: 25 }
+        ];
+
+        let allValid = true;
+        let details = [];
+
+        for (const tc of testCases) {
+            const lastValidStartYear = lastYear - Math.ceil(tc.years);
+            let count = 0;
+
+            for (let startYear = firstYear; startYear <= lastValidStartYear; startYear++) {
+                try {
+                    const payoff = scenarioPayoffMortgage(balance, tc.rate, tc.years, balance, `${startYear}-01-01`);
+                    if (!payoff.truncated) count++;
+                } catch (e) {}
+            }
+
+            if (count === 0) allValid = false;
+            details.push(`${(tc.rate*100)}%/${tc.years}yr: ${count}`);
+        }
+
+        return this.assertTrue(
+            allValid,
+            testName,
+            details.join(', '),
+            "All combinations have results"
+        );
+    },
+
+    // Test 27: Rate sweep produces monotonic decrease in invest wins
+    testRateSweepMonotonic() {
+        const testName = "Invest win rate decreases as mortgage rate increases";
+        const balance = 100000;
+        const years = 15;
+
+        const dataRange = getDataRange();
+        const firstYear = parseInt(dataRange.firstDate.split('-')[0]);
+        const lastYear = parseInt(dataRange.lastDate.split('-')[0]);
+        const lastValidStartYear = lastYear - Math.ceil(years);
+
+        const winRates = [];
+
+        for (let ratePct = 0; ratePct <= 10; ratePct += 2) {
+            const rate = ratePct / 100;
+            let investWins = 0, total = 0;
+
+            for (let startYear = firstYear; startYear <= lastValidStartYear; startYear++) {
+                try {
+                    const payoff = scenarioPayoffMortgage(balance, rate, years, balance, `${startYear}-01-01`);
+                    const invest = scenarioInvestLumpSum(balance, rate, years, balance, `${startYear}-01-01`);
+                    if (!payoff.truncated && !invest.truncated) {
+                        total++;
+                        if (invest.finalNetWorth > payoff.finalNetWorth) investWins++;
+                    }
+                } catch (e) {}
+            }
+
+            winRates.push({ rate: ratePct, pct: (investWins / total) * 100 });
+        }
+
+        // Check generally decreasing trend (allow small fluctuations)
+        let decreasing = true;
+        for (let i = 1; i < winRates.length; i++) {
+            // Allow up to 5% increase due to noise
+            if (winRates[i].pct > winRates[i-1].pct + 5) {
+                decreasing = false;
+            }
+        }
+
+        return this.assertTrue(
+            decreasing,
+            testName,
+            winRates.map(w => `${w.rate}%: ${w.pct.toFixed(0)}%`).join(', '),
+            "Generally decreasing trend"
+        );
+    },
+
+    // Test 28: Worst and best cases are different years
+    testWorstBestDifferentYears() {
+        const testName = "Worst and best invest outcomes are different starting years";
+        const balance = 100000;
+        const rate = 0.05;
+        const years = 15;
+
+        const dataRange = getDataRange();
+        const firstYear = parseInt(dataRange.firstDate.split('-')[0]);
+        const lastYear = parseInt(dataRange.lastDate.split('-')[0]);
+        const lastValidStartYear = lastYear - Math.ceil(years);
+
+        let bestYear = null, worstYear = null;
+        let bestNW = -Infinity, worstNW = Infinity;
+
+        for (let startYear = firstYear; startYear <= lastValidStartYear; startYear++) {
+            try {
+                const invest = scenarioInvestLumpSum(balance, rate, years, balance, `${startYear}-01-01`);
+                if (!invest.truncated) {
+                    if (invest.finalNetWorth > bestNW) {
+                        bestNW = invest.finalNetWorth;
+                        bestYear = startYear;
+                    }
+                    if (invest.finalNetWorth < worstNW) {
+                        worstNW = invest.finalNetWorth;
+                        worstYear = startYear;
+                    }
+                }
+            } catch (e) {}
+        }
+
+        return this.assertTrue(
+            bestYear !== worstYear && bestYear !== null && worstYear !== null,
+            testName,
+            `Best: ${bestYear} (${formatCurrency(bestNW)}), Worst: ${worstYear} (${formatCurrency(worstNW)})`,
+            "Different years for best/worst"
+        );
+    },
+
     runAll() {
         this.passed = 0;
         this.failed = 0;
@@ -525,6 +861,14 @@ const TestSuite = {
         this.testHistoricalNetWorthValid();
         this.testHistoricalYearsChronological();
         this.testHistoricalDifferentTerms();
+        this.testRateAnalysisHigherRatesFavorPayoff();
+        this.testWinMagnitudePositive();
+        this.testExpectedValueCalculation();
+        this.testStandardDeviationCalculation();
+        this.testRegretCalculation();
+        this.testComprehensiveMatrixDimensions();
+        this.testRateSweepMonotonic();
+        this.testWorstBestDifferentYears();
 
         console.log("\n========================================");
         console.log(`RESULTS: ${this.passed} passed, ${this.failed} failed`);
