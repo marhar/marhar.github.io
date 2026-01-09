@@ -95,13 +95,19 @@ function calculateIRR(cashFlows) {
 function getMonthlyReturns(startDate, endDate) {
     const returns = [];
     const dates = [];
-    const start = new Date(startDate);
-    const end = new Date(endDate);
 
-    let current = new Date(start.getFullYear(), start.getMonth(), 1);
+    // Parse dates as local time by splitting the string (avoids timezone issues)
+    const startParts = startDate.split('-').map(Number);
+    const endParts = endDate.split('-').map(Number);
 
-    while (current <= end) {
-        const yearMonth = `${current.getFullYear()}-${String(current.getMonth() + 1).padStart(2, '0')}`;
+    let year = startParts[0];
+    let month = startParts[1]; // 1-indexed
+
+    const endYear = endParts[0];
+    const endMonth = endParts[1];
+
+    while (year < endYear || (year === endYear && month <= endMonth)) {
+        const yearMonth = `${year}-${String(month).padStart(2, '0')}`;
 
         if (SP500_MONTHLY_RETURNS[yearMonth] !== undefined) {
             returns.push(SP500_MONTHLY_RETURNS[yearMonth]);
@@ -109,7 +115,11 @@ function getMonthlyReturns(startDate, endDate) {
         }
 
         // Move to next month
-        current.setMonth(current.getMonth() + 1);
+        month++;
+        if (month > 12) {
+            month = 1;
+            year++;
+        }
     }
 
     if (returns.length === 0) {
