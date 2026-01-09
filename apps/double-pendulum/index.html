@@ -7,12 +7,12 @@
     <link rel="stylesheet" href="../app-theme.css">
     <style>
         :root {
-            /* Muted colors for this app */
-            --color-primary: #6b8a9a;
-            --color-secondary: #8a7a8f;
-            --color-accent: #a07a70;
-            --color-success: #7a9a7d;
-            --color-danger: #a07a70;
+            /* Original bright colors for text/lines */
+            --color-primary: #3498db;
+            --color-secondary: #9b59b6;
+            --color-accent: #e74c3c;
+            --color-success: #2ecc71;
+            --color-danger: #e74c3c;
         }
 
         /* body base styles are in app-theme.css */
@@ -361,18 +361,21 @@
         const TRAIL_LENGTH = 500;
         const GRAPH_HISTORY = 1000;
 
-        // Colors - muted palette
+        // Colors
         const COLORS = {
-            primary: '#6b8a9a',
-            secondary: '#8a7a8f',
-            accent: '#a07a70',
-            success: '#7a9a7d',
-            rod: '#555',
-            pivot: '#777',
-            mass1: '#6b8a9a',
-            mass2: '#8a7a8f',
-            trail: 'rgba(138, 122, 143, 0.25)',
-            grid: '#e5e5e5'
+            primary: '#3498db',
+            secondary: '#9b59b6',
+            accent: '#e74c3c',
+            success: '#2ecc71',
+            rod: '#888',
+            pivot: '#aaa',
+            mass1: '#3498db',
+            mass2: '#9b59b6',
+            trail: 'rgba(155, 89, 182, 0.4)',
+            grid: '#444',
+            label: '#999',
+            canvasBg: '#2a2a2a',
+            graphBg: '#252525'
         };
 
         // ============================================================
@@ -548,7 +551,8 @@
             const { width, height } = resizeCanvas(pendulumCanvas);
             const ctx = pendulumCtx;
 
-            ctx.clearRect(0, 0, width, height);
+            ctx.fillStyle = COLORS.canvasBg;
+            ctx.fillRect(0, 0, width, height);
 
             const { L1, L2, m1, m2 } = params;
             const { theta1, theta2 } = state;
@@ -621,7 +625,8 @@
             const { width, height } = resizeCanvas(angleCanvas);
             const ctx = angleCtx;
 
-            ctx.clearRect(0, 0, width, height);
+            ctx.fillStyle = COLORS.graphBg;
+            ctx.fillRect(0, 0, width, height);
 
             const pad = { left: 40, right: 10, top: 10, bottom: 25 };
             const w = width - pad.left - pad.right;
@@ -641,7 +646,7 @@
             }
 
             // Y-axis labels
-            ctx.fillStyle = COLORS.pivot;
+            ctx.fillStyle = COLORS.label;
             ctx.font = '10px sans-serif';
             ctx.textAlign = 'right';
             ctx.fillText('180°', pad.left - 5, pad.top + 4);
@@ -679,7 +684,8 @@
             const { width, height } = resizeCanvas(phaseCanvas);
             const ctx = phaseCtx;
 
-            ctx.clearRect(0, 0, width, height);
+            ctx.fillStyle = COLORS.graphBg;
+            ctx.fillRect(0, 0, width, height);
 
             const pad = 30;
             const w = width - pad * 2;
@@ -698,7 +704,7 @@
             ctx.stroke();
 
             // Labels
-            ctx.fillStyle = COLORS.pivot;
+            ctx.fillStyle = COLORS.label;
             ctx.font = '10px sans-serif';
             ctx.textAlign = 'center';
             ctx.fillText('θ', width - 15, cy + 15);
@@ -742,7 +748,8 @@
             const { width, height } = resizeCanvas(energyCanvas);
             const ctx = energyCtx;
 
-            ctx.clearRect(0, 0, width, height);
+            ctx.fillStyle = COLORS.graphBg;
+            ctx.fillRect(0, 0, width, height);
 
             const pad = { left: 45, right: 10, top: 10, bottom: 25 };
             const w = width - pad.left - pad.right;
@@ -773,7 +780,7 @@
             }
 
             // Y-axis labels
-            ctx.fillStyle = COLORS.pivot;
+            ctx.fillStyle = COLORS.label;
             ctx.font = '10px sans-serif';
             ctx.textAlign = 'right';
             ctx.fillText(maxE.toFixed(1) + 'J', pad.left - 5, pad.top + 4);
