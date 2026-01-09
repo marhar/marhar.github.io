@@ -1,0 +1,396 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Comprehensive Rate/Term Analysis - Mortgage Payoff Calculator</title>
+    <link rel="stylesheet" href="simple.min.css">
+    <link rel="stylesheet" href="../app-theme.css">
+    <style>
+        body { background: var(--color-bg-white); display: block; }
+        main { padding: 0 20px 20px; max-width: 1400px; margin: 0 auto; }
+        header.app-header { background: var(--color-bg-white); border-bottom: 1px solid var(--color-border-light); padding: 8px 20px; text-align: left; }
+        header.app-header h1 { font-size: 1.1rem; margin: 0; }
+        header.app-header nav a { background: none; border: none; padding: 0; color: var(--color-primary); }
+        header.app-header nav a:hover { background: none; text-decoration: underline; }
+        .analysis-section {
+            margin: 2rem 0;
+        }
+        .chart-container {
+            margin: 1.5rem 0;
+            background: white;
+            border-radius: var(--standard-border-radius);
+            border: 1px solid var(--border);
+        }
+        #matrixContainer {
+            overflow-x: auto;
+            margin: 1rem 0;
+        }
+        #matrixTable {
+            border-collapse: collapse;
+            font-size: 0.75rem;
+            white-space: nowrap;
+        }
+        #matrixTable th, #matrixTable td {
+            padding: 4px 6px;
+            text-align: center;
+            border: 1px solid #ddd;
+        }
+        #matrixTable th {
+            background: #f5f5f5;
+            position: sticky;
+            top: 0;
+        }
+        #matrixTable th:first-child {
+            left: 0;
+            z-index: 2;
+        }
+        #matrixTable td:first-child {
+            background: #f5f5f5;
+            font-weight: bold;
+            position: sticky;
+            left: 0;
+        }
+        .note {
+            font-style: italic;
+            color: var(--text-light);
+            font-size: 0.9rem;
+        }
+        #loading {
+            text-align: center;
+            padding: 3rem;
+            font-size: 1.2rem;
+        }
+        .legend {
+            display: flex;
+            justify-content: center;
+            gap: 1rem;
+            margin: 1rem 0;
+            flex-wrap: wrap;
+        }
+        .legend-item {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            font-size: 0.85rem;
+        }
+        .legend-color {
+            width: 20px;
+            height: 20px;
+            border-radius: 3px;
+        }
+    </style>
+</head>
+<body>
+    <header class="app-header">
+        <div class="header-left">
+            <h1>Comprehensive Rate/Term Analysis</h1>
+            <span class="subtitle">Payoff win rate by mortgage rate and term length</span>
+        </div>
+        <nav>
+            <a href="https://marhar.github.io/">Home</a>
+            <a href="./">Calculator</a>
+            <a href="rate-analysis.html">Rate Analysis</a>
+        </nav>
+    </header>
+
+    <main>
+        <p class="note">
+            This analysis shows the historical "payoff wins" percentage for every combination of
+            mortgage rate (0-12%) and term length (1-30 years). Based on $300,000 mortgage balance.
+            Higher values (red) mean paying off the mortgage was historically better more often.
+        </p>
+
+        <div id="loading">
+            <p>Calculating comprehensive analysis...</p>
+            <p class="note">Analyzing 25 rates × 30 terms = 750 combinations across ~70+ years each</p>
+            <progress id="progressBar" max="100" value="0" style="width: 300px;"></progress>
+            <p id="progressText">0%</p>
+        </div>
+
+        <div id="results" style="display: none;">
+            <!-- 3D Surface Plot -->
+            <div class="analysis-section">
+                <h2>3D Surface Plot</h2>
+                <p class="note">
+                    X-axis: Mortgage Rate | Y-axis: Term (Years) | Z-axis: Payoff Win Rate (%)
+                </p>
+                <div class="chart-container" id="plot3d" style="height: 600px;"></div>
+            </div>
+
+            <!-- Heatmap -->
+            <div class="analysis-section">
+                <h2>Heatmap View</h2>
+                <div class="chart-container" id="heatmap" style="height: 500px;"></div>
+            </div>
+
+            <!-- Matrix Table -->
+            <div class="analysis-section">
+                <h2>Data Matrix</h2>
+                <div class="legend">
+                    <div class="legend-item">
+                        <div class="legend-color" style="background: #28a745;"></div>
+                        <span>0-25% (Invest wins)</span>
+                    </div>
+                    <div class="legend-item">
+                        <div class="legend-color" style="background: #7cb342;"></div>
+                        <span>25-40%</span>
+                    </div>
+                    <div class="legend-item">
+                        <div class="legend-color" style="background: #fdd835;"></div>
+                        <span>40-60% (Crossover)</span>
+                    </div>
+                    <div class="legend-item">
+                        <div class="legend-color" style="background: #fb8c00;"></div>
+                        <span>60-75%</span>
+                    </div>
+                    <div class="legend-item">
+                        <div class="legend-color" style="background: #e53935;"></div>
+                        <span>75-100% (Payoff wins)</span>
+                    </div>
+                </div>
+                <div id="matrixContainer">
+                    <table id="matrixTable">
+                        <thead id="matrixHead"></thead>
+                        <tbody id="matrixBody"></tbody>
+                    </table>
+                </div>
+            </div>
+
+            <div class="note" style="margin-top: 2rem;">
+                <strong>How to read:</strong> Each cell shows the percentage of historical periods where
+                paying off the mortgage resulted in higher final net worth than investing. For example,
+                a cell showing "75%" means payoff beat investing in 75% of all valid starting years.
+                <br><br>
+                <strong>Key insight:</strong> The "crossover zone" (yellow, 40-60%) shows where the strategies
+                are roughly equivalent. Above this zone, payoff tends to win; below it, investing tends to win.
+            </div>
+        </div>
+    </main>
+
+    <script src="https://cdn.plot.ly/plotly-2.27.0.min.js"></script>
+    <script src="sp500_data.js"></script>
+    <script src="mortgage.js"></script>
+    <script src="app.js"></script>
+    <script>
+        /**
+         * Calculate payoff win rate for a given rate and term
+         */
+        function calculateWinRate(rate, years) {
+            const balance = 300000;
+            const dataRange = getDataRange();
+            const firstYear = parseInt(dataRange.firstDate.split('-')[0]);
+            const lastYear = parseInt(dataRange.lastDate.split('-')[0]);
+            const lastValidStartYear = lastYear - Math.ceil(years);
+
+            let payoffWins = 0;
+            let total = 0;
+
+            for (let startYear = firstYear; startYear <= lastValidStartYear; startYear++) {
+                try {
+                    const payoff = scenarioPayoffMortgage(balance, rate, years, balance, `${startYear}-01-01`);
+                    const invest = scenarioInvestLumpSum(balance, rate, years, balance, `${startYear}-01-01`);
+
+                    if (!payoff.truncated && !invest.truncated) {
+                        total++;
+                        if (payoff.finalNetWorth >= invest.finalNetWorth) {
+                            payoffWins++;
+                        }
+                    }
+                } catch (e) {}
+            }
+
+            return total > 0 ? (payoffWins / total) * 100 : null;
+        }
+
+        /**
+         * Get cell color based on payoff win rate
+         */
+        function getCellColor(value) {
+            if (value === null) return '#ccc';
+            if (value < 25) return '#28a745';
+            if (value < 40) return '#7cb342';
+            if (value < 60) return '#fdd835';
+            if (value < 75) return '#fb8c00';
+            return '#e53935';
+        }
+
+        /**
+         * Get text color for contrast
+         */
+        function getTextColor(value) {
+            if (value === null) return '#666';
+            if (value < 25 || value >= 75) return 'white';
+            return 'black';
+        }
+
+        /**
+         * Run comprehensive analysis
+         */
+        async function runComprehensiveAnalysis() {
+            const rates = [];
+            for (let r = 0; r <= 12; r += 0.5) {
+                rates.push(r);
+            }
+
+            const terms = [];
+            for (let t = 1; t <= 30; t++) {
+                terms.push(t);
+            }
+
+            const matrix = []; // [term][rate] = payoffWinPct
+            const totalCalcs = rates.length * terms.length;
+            let completed = 0;
+
+            // Calculate all combinations
+            for (let termIdx = 0; termIdx < terms.length; termIdx++) {
+                const term = terms[termIdx];
+                const row = [];
+
+                for (let rateIdx = 0; rateIdx < rates.length; rateIdx++) {
+                    const rate = rates[rateIdx] / 100;
+                    const winRate = calculateWinRate(rate, term);
+                    row.push(winRate);
+
+                    completed++;
+                    if (completed % 10 === 0) {
+                        const pct = Math.round((completed / totalCalcs) * 100);
+                        document.getElementById('progressBar').value = pct;
+                        document.getElementById('progressText').textContent = pct + '%';
+                        await new Promise(r => setTimeout(r, 0)); // Allow UI update
+                    }
+                }
+
+                matrix.push(row);
+            }
+
+            return { rates, terms, matrix };
+        }
+
+        /**
+         * Render the matrix table
+         */
+        function renderMatrix(data) {
+            const { rates, terms, matrix } = data;
+
+            // Header row
+            const thead = document.getElementById('matrixHead');
+            let headerHtml = '<tr><th>Term \\ Rate</th>';
+            for (const rate of rates) {
+                headerHtml += `<th>${rate.toFixed(1)}%</th>`;
+            }
+            headerHtml += '</tr>';
+            thead.innerHTML = headerHtml;
+
+            // Data rows
+            const tbody = document.getElementById('matrixBody');
+            let bodyHtml = '';
+            for (let termIdx = 0; termIdx < terms.length; termIdx++) {
+                bodyHtml += `<tr><td>${terms[termIdx]} yr</td>`;
+                for (let rateIdx = 0; rateIdx < rates.length; rateIdx++) {
+                    const val = matrix[termIdx][rateIdx];
+                    const bg = getCellColor(val);
+                    const fg = getTextColor(val);
+                    const display = val !== null ? val.toFixed(0) + '%' : 'N/A';
+                    bodyHtml += `<td style="background:${bg};color:${fg}">${display}</td>`;
+                }
+                bodyHtml += '</tr>';
+            }
+            tbody.innerHTML = bodyHtml;
+        }
+
+        /**
+         * Render 3D surface plot
+         */
+        function render3DPlot(data) {
+            const { rates, terms, matrix } = data;
+
+            // Transpose matrix for Plotly (x=rates, y=terms, z=values)
+            const z = matrix;
+
+            const trace = {
+                type: 'surface',
+                x: rates,
+                y: terms,
+                z: z,
+                colorscale: [
+                    [0, '#28a745'],
+                    [0.25, '#7cb342'],
+                    [0.5, '#fdd835'],
+                    [0.75, '#fb8c00'],
+                    [1, '#e53935']
+                ],
+                colorbar: {
+                    title: 'Payoff Win %',
+                    ticksuffix: '%'
+                }
+            };
+
+            const layout = {
+                scene: {
+                    xaxis: { title: 'Mortgage Rate (%)' },
+                    yaxis: { title: 'Term (Years)' },
+                    zaxis: { title: 'Payoff Win Rate (%)', range: [0, 100] },
+                    camera: {
+                        eye: { x: 1.5, y: -1.5, z: 0.8 }
+                    }
+                },
+                margin: { l: 0, r: 0, t: 30, b: 0 }
+            };
+
+            Plotly.newPlot('plot3d', [trace], layout, { responsive: true });
+        }
+
+        /**
+         * Render heatmap
+         */
+        function renderHeatmap(data) {
+            const { rates, terms, matrix } = data;
+
+            const trace = {
+                type: 'heatmap',
+                x: rates.map(r => r.toFixed(1) + '%'),
+                y: terms.map(t => t + ' yr'),
+                z: matrix,
+                colorscale: [
+                    [0, '#28a745'],
+                    [0.25, '#7cb342'],
+                    [0.5, '#fdd835'],
+                    [0.75, '#fb8c00'],
+                    [1, '#e53935']
+                ],
+                colorbar: {
+                    title: 'Payoff Win %',
+                    ticksuffix: '%'
+                },
+                hovertemplate: 'Rate: %{x}<br>Term: %{y}<br>Payoff Wins: %{z:.1f}%<extra></extra>'
+            };
+
+            const layout = {
+                xaxis: { title: 'Mortgage Rate', side: 'top' },
+                yaxis: { title: 'Term Length', autorange: 'reversed' },
+                margin: { l: 60, r: 20, t: 60, b: 20 }
+            };
+
+            Plotly.newPlot('heatmap', [trace], layout, { responsive: true });
+        }
+
+        /**
+         * Initialize on page load
+         */
+        document.addEventListener('DOMContentLoaded', async function() {
+            // Run analysis
+            const data = await runComprehensiveAnalysis();
+
+            // Render visualizations
+            renderMatrix(data);
+            render3DPlot(data);
+            renderHeatmap(data);
+
+            // Show results
+            document.getElementById('loading').style.display = 'none';
+            document.getElementById('results').style.display = 'block';
+        });
+    </script>
+</body>
+</html>
