@@ -135,3 +135,48 @@ a {
 a:hover {
     color: var(--color-primary-dark);
 }
+
+/* Compact app header */
+.app-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 8px 20px;
+    background: var(--color-bg-white);
+    border-bottom: 1px solid var(--color-border-light);
+    gap: 15px;
+}
+
+.app-header h1 {
+    font-size: 1.1rem;
+    font-weight: 600;
+    margin: 0;
+    color: var(--color-text);
+}
+
+.app-header .subtitle {
+    font-size: 0.85rem;
+    color: var(--color-text-light);
+    margin: 0;
+}
+
+.app-header .header-left {
+    display: flex;
+    align-items: baseline;
+    gap: 15px;
+    flex-wrap: wrap;
+}
+
+.app-header nav {
+    display: flex;
+    gap: 15px;
+    font-size: 0.85rem;
+}
+
+.app-header nav a {
+    text-decoration: none;
+}
+
+.app-header nav a:hover {
+    text-decoration: underline;
+}

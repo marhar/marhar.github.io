@@ -22,23 +22,7 @@
             gap: 20px;
         }
 
-        h1 {
-            width: 100%;
-            font-size: 1.5rem;
-            color: var(--color-text);
-            margin-bottom: 10px;
-        }
-
-        .description {
-            width: 100%;
-            color: var(--color-text-light);
-            margin-bottom: 10px;
-            line-height: 1.5;
-        }
-
-        .description a {
-            color: var(--color-primary);
-        }
+        /* Header styles are in app-theme.css */
 
         /* Visualization area */
         .viz-panel {
@@ -323,14 +307,19 @@
     </style>
 </head>
 <body>
+    <header class="app-header">
+        <div class="header-left">
+            <h1>PID Controller Demo</h1>
+            <span class="subtitle">East Bay Guide to PID Loops - Part 3</span>
+        </div>
+        <nav>
+            <a href="https://marhar.github.io/">Home</a>
+            <a href="https://www.youtube.com/watch?v=l03SioQ9ySg" target="_blank">Part 1</a>
+            <a href="https://www.youtube.com/watch?v=sDd4VOpOnnA" target="_blank">Part 2</a>
+        </nav>
+    </header>
+
     <div class="container">
-        <h1>East Bay Guide to PID Loops - Part 3: Interactive Demo</h1>
-        <p class="description">
-            This is part 3 of the PID tutorial series. See
-            <a href="https://www.youtube.com/watch?v=l03SioQ9ySg" target="_blank">Part 1</a> and
-            <a href="https://www.youtube.com/watch?v=sDd4VOpOnnA" target="_blank">Part 2</a> on YouTube.
-            Click on the simulation to set a target altitude. The PID controller adjusts thrust to make the helicopter hover at that height, fighting against gravity.
-        </p>
 
         <div class="viz-panel">
             <h3>Helicopter Hover (click to set altitude)</h3>

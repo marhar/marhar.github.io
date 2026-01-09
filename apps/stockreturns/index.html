@@ -5,7 +5,11 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Stock Returns Calculator - S&P 500 Investment Calculator</title>
     <link rel="stylesheet" href="simple.min.css">
+    <link rel="stylesheet" href="../app-theme.css">
     <style>
+        /* Override for this app */
+        body { background: var(--color-bg-white); }
+        main { padding: 0 20px 20px; max-width: 1200px; margin: 0 auto; }
         .summary-grid {
             display: grid;
             grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
@@ -73,13 +77,15 @@
     </style>
 </head>
 <body>
-    <header>
-        <h1>Stock Returns Calculator</h1>
-        <p>Calculate S&P 500 investment returns using actual historical data from 1928 to present</p>
+    <header class="app-header">
+        <div class="header-left">
+            <h1>Stock Returns Calculator</h1>
+            <span class="subtitle">S&P 500 historical returns since 1928</span>
+        </div>
         <nav>
             <a href="https://marhar.github.io/">Home</a>
-            <a href="../mortgage-payoff/">Mortgage Payoff Calculator</a>
-            <a href="https://github.com/marhar/marhar.github.io/tree/master/stockreturns">Source</a>
+            <a href="../mortgage-payoff/">Mortgage Payoff</a>
+            <a href="https://github.com/marhar/marhar.github.io/tree/master/apps/stockreturns">Source</a>
         </nav>
     </header>
 

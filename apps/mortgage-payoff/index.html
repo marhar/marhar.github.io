@@ -5,7 +5,11 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Mortgage Payoff vs Invest Calculator</title>
     <link rel="stylesheet" href="simple.min.css">
+    <link rel="stylesheet" href="../app-theme.css">
     <style>
+        /* Override for this app */
+        body { background: var(--color-bg-white); }
+        main { padding: 0 20px 20px; max-width: 1200px; margin: 0 auto; }
         .summary-grid {
             display: grid;
             grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
@@ -75,13 +79,15 @@
     </style>
 </head>
 <body>
-    <header>
-        <h1>Mortgage Payoff vs Invest Calculator</h1>
-        <p>You have enough cash to pay off your mortgage. Should you pay it off or invest in the S&P 500?</p>
+    <header class="app-header">
+        <div class="header-left">
+            <h1>Mortgage Payoff vs Invest</h1>
+            <span class="subtitle">Pay off mortgage or invest in S&P 500?</span>
+        </div>
         <nav>
             <a href="https://marhar.github.io/">Home</a>
-            <a href="../stockreturns/">Stock Returns Calculator</a>
-            <a href="https://github.com/marhar/marhar.github.io/tree/master/mortgage-payoff">Source</a>
+            <a href="../stockreturns/">Stock Returns</a>
+            <a href="https://github.com/marhar/marhar.github.io/tree/master/apps/mortgage-payoff">Source</a>
         </nav>
     </header>
 

@@ -24,21 +24,7 @@
             min-height: 100vh;
         }
 
-        header {
-            grid-column: 1 / -1;
-            text-align: center;
-            padding: 10px;
-        }
-
-        header h1 {
-            font-size: 24px;
-            margin-bottom: 5px;
-        }
-
-        header p {
-            color: var(--color-text-light);
-            font-size: 14px;
-        }
+        /* Header styles are in app-theme.css */
 
         /* Control Panel */
         .controls {
@@ -231,11 +217,17 @@
     </style>
 </head>
 <body>
-    <div class="container">
-        <header>
+    <header class="app-header">
+        <div class="header-left">
             <h1>Double Pendulum Simulator</h1>
-            <p>A chaotic system demonstrating sensitive dependence on initial conditions</p>
-        </header>
+            <span class="subtitle">Chaotic dynamics visualization</span>
+        </div>
+        <nav>
+            <a href="https://marhar.github.io/">Home</a>
+        </nav>
+    </header>
+
+    <div class="container">
 
         <aside class="controls">
             <h3>Parameters</h3>

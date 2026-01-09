@@ -215,14 +215,33 @@
         .popup-delete:hover {
             text-decoration: underline;
         }
+        /* Adjust for header */
+        .app-header {
+            position: relative;
+            z-index: 1001;
+        }
+
+        #map, #globe {
+            top: 41px;
+            height: calc(100vh - 41px);
+        }
     </style>
 </head>
 <body>
+    <header class="app-header">
+        <div class="header-left">
+            <h1>Geographic Center Calculator</h1>
+        </div>
+        <nav>
+            <a href="https://marhar.github.io/">Home</a>
+        </nav>
+    </header>
+
     <div id="map"></div>
     <div id="globe"></div>
 
     <div class="controls">
-        <h3>Geo Center Calculator</h3>
+        <h3>Controls</h3>
 
         <div class="search-container">
             <input type="text" id="search-input" placeholder="Search for a location..." aria-label="Search locations">
