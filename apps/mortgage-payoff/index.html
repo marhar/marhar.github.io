@@ -8,7 +8,7 @@
     <link rel="stylesheet" href="../app-theme.css">
     <style>
         /* Override simple.min.css for this app */
-        body { background: var(--color-bg-white); display: block; }
+        body { background: var(--color-bg-white); display: block; color: var(--color-text); }
         main { padding: 0 20px 20px; max-width: 1200px; margin: 0 auto; }
         header.app-header { background: var(--color-bg-white); border-bottom: 1px solid var(--color-border-light); padding: 8px 20px; text-align: left; }
         header.app-header h1 { font-size: 1.1rem; margin: 0; }
@@ -23,18 +23,19 @@
         }
         .summary-card {
             padding: 1.5rem;
-            background: var(--accent-bg);
-            border: 1px solid var(--border);
-            border-radius: var(--standard-border-radius);
+            background: var(--color-bg);
+            border: 1px solid var(--color-border-light);
+            border-radius: var(--border-radius);
+            color: var(--color-text);
         }
         .summary-card h3 {
             margin-top: 0;
-            color: var(--accent);
+            color: var(--color-text);
             font-size: 1.2rem;
         }
         .summary-card .label {
             font-size: 0.9rem;
-            color: #333;
+            color: var(--color-text-light);
             margin-top: 1rem;
         }
         .summary-card .value {
@@ -43,43 +44,48 @@
             margin: 0.5rem 0;
         }
         .winner {
-            background: var(--accent-bg);
-            border: 2px solid var(--accent);
+            background: var(--color-bg);
+            border: 2px solid var(--color-primary);
         }
-        .positive { color: #28a745; }
-        .negative { color: #dc3545; }
+        .positive { color: var(--color-success); }
+        .negative { color: var(--color-danger); }
         #resultsSection { display: none; }
         #resultsSection.active { display: block; }
         #chartContainer {
             margin: 2rem 0;
             padding: 1.5rem;
-            background: var(--bg);
-            border: 1px solid var(--border);
-            border-radius: var(--standard-border-radius);
+            background: var(--color-bg);
+            border: 1px solid var(--color-border-light);
+            border-radius: var(--border-radius);
         }
         .note {
             font-style: italic;
-            color: #333;
+            color: var(--color-text-light);
             font-size: 0.9rem;
             margin: 0.5rem 0;
         }
         form {
-            background: var(--accent-bg);
+            background: var(--color-bg);
             padding: 1.5rem;
-            border-radius: var(--standard-border-radius);
+            border-radius: var(--border-radius);
             margin: 1.5rem 0;
+        }
+        form input {
+            background: var(--color-bg-white);
+            color: var(--color-text);
+            border: 1px solid var(--color-border-light);
         }
         .form-section {
             margin-bottom: 2rem;
             padding-bottom: 1rem;
-            border-bottom: 1px solid var(--border);
+            border-bottom: 1px solid var(--color-border-light);
         }
         .form-section:last-of-type {
             border-bottom: none;
         }
         .form-section h3 {
             margin-top: 0;
-            color: var(--accent);
+            color: var(--color-text);
         }
     </style>
 </head>
