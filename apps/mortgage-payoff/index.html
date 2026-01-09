@@ -182,6 +182,32 @@
                 a guaranteed return equal to your interest rate, while investing carries market risk.
                 Consider your risk tolerance and financial situation before making decisions.
             </div>
+
+            <div id="historicalSection" style="margin-top: 2rem;">
+                <h3>Historical Comparison</h3>
+                <p class="note">Run the same scenario starting from every year with complete data</p>
+                <button type="button" id="runHistoricalBtn">Run Historical Analysis</button>
+
+                <div id="historicalResults" style="display: none; margin-top: 1rem;">
+                    <div id="historicalSummary" class="summary-card" style="margin-bottom: 1rem;">
+                    </div>
+                    <div style="max-height: 400px; overflow-y: auto;">
+                        <table id="historicalTable" style="width: 100%;">
+                            <thead>
+                                <tr>
+                                    <th>Start Year</th>
+                                    <th>Payoff Net Worth</th>
+                                    <th>Invest Net Worth</th>
+                                    <th>Winner</th>
+                                    <th>Advantage</th>
+                                </tr>
+                            </thead>
+                            <tbody id="historicalTableBody">
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
         </section>
     </main>
 

@@ -436,6 +436,132 @@ document.getElementById('calculatorForm').addEventListener('submit', function(e)
     }
 });
 
+/**
+ * Run historical comparison across all valid starting years
+ */
+function runHistoricalAnalysis() {
+    const balance = parseFloat(document.getElementById('balance').value);
+    const rate = parseFloat(document.getElementById('rate').value) / 100;
+    const years = parseFloat(document.getElementById('years').value);
+
+    if (balance <= 0 || rate <= 0 || years <= 0) {
+        alert('Please enter valid values first');
+        return;
+    }
+
+    const dataRange = getDataRange();
+    const firstYear = parseInt(dataRange.firstDate.split('-')[0]);
+    const lastYear = parseInt(dataRange.lastDate.split('-')[0]);
+
+    // Calculate the last valid starting year (need full 'years' of data)
+    const lastValidStartYear = lastYear - Math.ceil(years);
+
+    const results = [];
+    let payoffWins = 0;
+    let investWins = 0;
+
+    // Run analysis for each valid starting year
+    for (let startYear = firstYear; startYear <= lastValidStartYear; startYear++) {
+        const startDate = `${startYear}-01-01`;
+
+        try {
+            const payoff = scenarioPayoffMortgage(balance, rate, years, balance, startDate);
+            const invest = scenarioInvestLumpSum(balance, rate, years, balance, startDate);
+
+            // Skip if data was truncated (incomplete period)
+            if (payoff.truncated || invest.truncated) {
+                continue;
+            }
+
+            const payoffNetWorth = payoff.finalNetWorth;
+            const investNetWorth = invest.finalNetWorth;
+            const investWinsThisYear = investNetWorth > payoffNetWorth;
+
+            if (investWinsThisYear) {
+                investWins++;
+            } else {
+                payoffWins++;
+            }
+
+            results.push({
+                startYear,
+                payoffNetWorth,
+                investNetWorth,
+                winner: investWinsThisYear ? 'Invest' : 'Payoff',
+                advantage: Math.abs(investNetWorth - payoffNetWorth)
+            });
+        } catch (e) {
+            // Skip years with errors
+            continue;
+        }
+    }
+
+    // Display results
+    displayHistoricalResults(results, payoffWins, investWins, years);
+}
+
+/**
+ * Display historical analysis results
+ */
+function displayHistoricalResults(results, payoffWins, investWins, years) {
+    const resultsDiv = document.getElementById('historicalResults');
+    const summaryDiv = document.getElementById('historicalSummary');
+    const tbody = document.getElementById('historicalTableBody');
+
+    if (!resultsDiv || !summaryDiv || !tbody) return;
+
+    const total = payoffWins + investWins;
+    const investPct = ((investWins / total) * 100).toFixed(1);
+    const payoffPct = ((payoffWins / total) * 100).toFixed(1);
+
+    // Summary
+    summaryDiv.innerHTML = `
+        <h3>Historical Results Summary</h3>
+        <p><strong>${total}</strong> ${years}-year periods analyzed (${results[0]?.startYear || 'N/A'} - ${results[results.length - 1]?.startYear || 'N/A'})</p>
+        <div style="display: flex; gap: 2rem; margin-top: 1rem;">
+            <div>
+                <div class="label">Invest Wins</div>
+                <div class="value positive">${investWins} (${investPct}%)</div>
+            </div>
+            <div>
+                <div class="label">Payoff Wins</div>
+                <div class="value negative">${payoffWins} (${payoffPct}%)</div>
+            </div>
+        </div>
+        <p class="note" style="margin-top: 1rem;">
+            Historically, investing won ${investPct}% of the time for ${years}-year periods.
+        </p>
+    `;
+
+    // Table rows
+    tbody.innerHTML = results.map(r => `
+        <tr>
+            <td>${r.startYear}</td>
+            <td>${formatCurrency(r.payoffNetWorth)}</td>
+            <td>${formatCurrency(r.investNetWorth)}</td>
+            <td class="${r.winner === 'Invest' ? 'positive' : 'negative'}">${r.winner}</td>
+            <td>${formatCurrency(r.advantage)}</td>
+        </tr>
+    `).join('');
+
+    resultsDiv.style.display = 'block';
+}
+
+/**
+ * Historical analysis button handler
+ */
+document.getElementById('runHistoricalBtn')?.addEventListener('click', function() {
+    this.textContent = 'Running...';
+    this.disabled = true;
+
+    // Use setTimeout to allow UI to update
+    setTimeout(() => {
+        runHistoricalAnalysis();
+        this.textContent = 'Run Historical Analysis';
+        this.disabled = false;
+    }, 50);
+});
+
 // Initialize on page load
 document.addEventListener('DOMContentLoaded', function() {
     displayDataFreshness();
