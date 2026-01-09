@@ -197,12 +197,14 @@
         }
 
         button.secondary {
-            background: #e0e0e0;
-            color: var(--color-text);
+            background: var(--color-bg-white);
+            color: var(--color-primary);
+            border: 1px solid var(--color-primary);
         }
 
         button.secondary:hover {
-            background: #d0d0d0;
+            background: var(--color-primary);
+            color: white;
         }
 
         button.danger {
@@ -238,13 +240,15 @@
             min-width: 80px;
             padding: 8px 10px;
             font-size: 12px;
-            background: var(--color-bg);
+            background: var(--color-bg-white);
             color: var(--color-text);
-            border: 1px solid var(--color-border-light);
+            border: 1px solid var(--color-border);
         }
 
         .preset-buttons button:hover {
-            background: #e8e8e8;
+            background: var(--color-primary);
+            color: white;
+            border-color: var(--color-primary);
         }
 
         /* Stats */
