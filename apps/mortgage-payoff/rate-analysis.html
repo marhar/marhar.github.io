@@ -1,0 +1,344 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Mortgage Rate vs Historical Win Rate Analysis</title>
+    <link rel="stylesheet" href="simple.min.css">
+    <link rel="stylesheet" href="../app-theme.css">
+    <style>
+        body { background: var(--color-bg-white); display: block; }
+        main { padding: 0 20px 20px; max-width: 1200px; margin: 0 auto; }
+        header.app-header { background: var(--color-bg-white); border-bottom: 1px solid var(--color-border-light); padding: 8px 20px; text-align: left; }
+        header.app-header h1 { font-size: 1.1rem; margin: 0; }
+        header.app-header nav a { background: none; border: none; padding: 0; color: var(--color-primary); }
+        header.app-header nav a:hover { background: none; text-decoration: underline; }
+        .analysis-section {
+            margin: 2rem 0;
+            padding: 1.5rem;
+            background: var(--accent-bg);
+            border: 1px solid var(--border);
+            border-radius: var(--standard-border-radius);
+        }
+        .analysis-section h2 {
+            margin-top: 0;
+            color: var(--accent);
+        }
+        .chart-container {
+            margin: 1.5rem 0;
+            padding: 1rem;
+            background: white;
+            border-radius: var(--standard-border-radius);
+        }
+        table {
+            width: 100%;
+            margin: 1rem 0;
+            font-size: 0.9rem;
+        }
+        th, td {
+            padding: 0.5rem;
+            text-align: right;
+        }
+        th:first-child, td:first-child {
+            text-align: left;
+        }
+        .positive { color: #28a745; }
+        .negative { color: #dc3545; }
+        .neutral { color: #6c757d; }
+        .crossover { background: #fff3cd; font-weight: bold; }
+        .summary-box {
+            background: white;
+            padding: 1rem;
+            border-radius: var(--standard-border-radius);
+            margin-bottom: 1rem;
+        }
+        .note {
+            font-style: italic;
+            color: var(--text-light);
+            font-size: 0.9rem;
+        }
+        #loading {
+            text-align: center;
+            padding: 2rem;
+            font-size: 1.2rem;
+        }
+    </style>
+</head>
+<body>
+    <header class="app-header">
+        <div class="header-left">
+            <h1>Rate vs Win Rate Analysis</h1>
+            <span class="subtitle">Historical comparison across mortgage rates</span>
+        </div>
+        <nav>
+            <a href="https://marhar.github.io/">Home</a>
+            <a href="./">Calculator</a>
+            <a href="../stockreturns/">Stock Returns</a>
+        </nav>
+    </header>
+
+    <main>
+        <p class="note">
+            This analysis shows how often investing beats paying off the mortgage across all historical
+            starting years, for different mortgage interest rates. Based on $300,000 mortgage balance.
+        </p>
+
+        <div id="loading">Calculating historical analysis...</div>
+
+        <div id="results" style="display: none;">
+            <!-- 30-Year Analysis -->
+            <div class="analysis-section">
+                <h2>30-Year Mortgage Term</h2>
+                <div class="summary-box">
+                    <p><strong>Crossover Point:</strong> <span id="crossover30">-</span></p>
+                    <p class="note">Above this rate, paying off the mortgage historically wins more often.</p>
+                </div>
+                <div class="chart-container">
+                    <canvas id="chart30"></canvas>
+                </div>
+                <details>
+                    <summary>View Full Table</summary>
+                    <table id="table30">
+                        <thead>
+                            <tr>
+                                <th>Rate</th>
+                                <th>Invest Wins</th>
+                                <th>Payoff Wins</th>
+                                <th>Total Periods</th>
+                                <th>Invest Win %</th>
+                            </tr>
+                        </thead>
+                        <tbody></tbody>
+                    </table>
+                </details>
+            </div>
+
+            <!-- 15-Year Analysis -->
+            <div class="analysis-section">
+                <h2>15-Year Mortgage Term</h2>
+                <div class="summary-box">
+                    <p><strong>Crossover Point:</strong> <span id="crossover15">-</span></p>
+                    <p class="note">Above this rate, paying off the mortgage historically wins more often.</p>
+                </div>
+                <div class="chart-container">
+                    <canvas id="chart15"></canvas>
+                </div>
+                <details>
+                    <summary>View Full Table</summary>
+                    <table id="table15">
+                        <thead>
+                            <tr>
+                                <th>Rate</th>
+                                <th>Invest Wins</th>
+                                <th>Payoff Wins</th>
+                                <th>Total Periods</th>
+                                <th>Invest Win %</th>
+                            </tr>
+                        </thead>
+                        <tbody></tbody>
+                    </table>
+                </details>
+            </div>
+
+            <div class="note" style="margin-top: 2rem;">
+                <strong>Methodology:</strong> For each mortgage rate, we run the payoff vs invest comparison
+                for every valid starting year with complete S&P 500 data. "Invest Wins" means the final net
+                worth was higher when investing the lump sum versus paying off the mortgage.
+                <br><br>
+                <strong>Important:</strong> Past performance does not guarantee future results. This analysis
+                uses historical data and should not be the sole basis for financial decisions.
+            </div>
+        </div>
+    </main>
+
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+    <script src="sp500_data.js"></script>
+    <script src="mortgage.js"></script>
+    <script src="app.js"></script>
+    <script>
+        /**
+         * Run analysis for a given term length
+         */
+        function runAnalysis(years) {
+            const balance = 300000;
+            const results = [];
+
+            const dataRange = getDataRange();
+            const firstYear = parseInt(dataRange.firstDate.split('-')[0]);
+            const lastYear = parseInt(dataRange.lastDate.split('-')[0]);
+            const lastValidStartYear = lastYear - Math.ceil(years);
+
+            // Test rates from 0% to 12% in 0.5% increments
+            for (let ratePct = 0; ratePct <= 12; ratePct += 0.5) {
+                const rate = ratePct / 100;
+                let investWins = 0;
+                let payoffWins = 0;
+
+                for (let startYear = firstYear; startYear <= lastValidStartYear; startYear++) {
+                    try {
+                        const payoff = scenarioPayoffMortgage(balance, rate, years, balance, `${startYear}-01-01`);
+                        const invest = scenarioInvestLumpSum(balance, rate, years, balance, `${startYear}-01-01`);
+
+                        if (!payoff.truncated && !invest.truncated) {
+                            if (invest.finalNetWorth > payoff.finalNetWorth) {
+                                investWins++;
+                            } else {
+                                payoffWins++;
+                            }
+                        }
+                    } catch (e) {}
+                }
+
+                const total = investWins + payoffWins;
+                results.push({
+                    rate: ratePct,
+                    rateStr: ratePct.toFixed(1) + '%',
+                    investWins,
+                    payoffWins,
+                    total,
+                    investPct: total > 0 ? (investWins / total) * 100 : 0
+                });
+            }
+
+            return results;
+        }
+
+        /**
+         * Find crossover point
+         */
+        function findCrossover(results) {
+            for (const r of results) {
+                if (r.investPct < 50) {
+                    return r.rateStr;
+                }
+            }
+            return 'Above 12%';
+        }
+
+        /**
+         * Render table
+         */
+        function renderTable(results, tableId) {
+            const tbody = document.querySelector(`#${tableId} tbody`);
+            let crossoverFound = false;
+
+            tbody.innerHTML = results.map(r => {
+                let rowClass = '';
+                if (!crossoverFound && r.investPct < 50) {
+                    rowClass = 'crossover';
+                    crossoverFound = true;
+                }
+
+                const winClass = r.investPct >= 50 ? 'positive' : 'negative';
+
+                return `
+                    <tr class="${rowClass}">
+                        <td>${r.rateStr}</td>
+                        <td>${r.investWins}</td>
+                        <td>${r.payoffWins}</td>
+                        <td>${r.total}</td>
+                        <td class="${winClass}">${r.investPct.toFixed(1)}%</td>
+                    </tr>
+                `;
+            }).join('');
+        }
+
+        /**
+         * Render chart
+         */
+        function renderChart(results, canvasId, termLabel) {
+            const ctx = document.getElementById(canvasId).getContext('2d');
+
+            new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: results.map(r => r.rateStr),
+                    datasets: [
+                        {
+                            label: 'Invest Win %',
+                            data: results.map(r => r.investPct),
+                            borderColor: 'rgb(40, 167, 69)',
+                            backgroundColor: 'rgba(40, 167, 69, 0.1)',
+                            fill: true,
+                            tension: 0.2
+                        },
+                        {
+                            label: '50% Line',
+                            data: results.map(() => 50),
+                            borderColor: 'rgba(108, 117, 125, 0.5)',
+                            borderDash: [5, 5],
+                            pointRadius: 0,
+                            fill: false
+                        }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: true,
+                    plugins: {
+                        title: {
+                            display: true,
+                            text: `${termLabel} - Invest Win Rate vs Mortgage Rate`
+                        },
+                        legend: {
+                            display: true,
+                            position: 'top'
+                        },
+                        tooltip: {
+                            callbacks: {
+                                label: function(context) {
+                                    if (context.dataset.label === '50% Line') return null;
+                                    return `Invest wins ${context.parsed.y.toFixed(1)}% of the time`;
+                                }
+                            }
+                        }
+                    },
+                    scales: {
+                        y: {
+                            min: 0,
+                            max: 100,
+                            title: {
+                                display: true,
+                                text: 'Invest Win Rate (%)'
+                            },
+                            ticks: {
+                                callback: value => value + '%'
+                            }
+                        },
+                        x: {
+                            title: {
+                                display: true,
+                                text: 'Mortgage Interest Rate'
+                            }
+                        }
+                    }
+                }
+            });
+        }
+
+        /**
+         * Run all analyses on page load
+         */
+        document.addEventListener('DOMContentLoaded', function() {
+            // Use setTimeout to allow page to render first
+            setTimeout(() => {
+                // 30-year analysis
+                const results30 = runAnalysis(30);
+                document.getElementById('crossover30').textContent = findCrossover(results30);
+                renderTable(results30, 'table30');
+                renderChart(results30, 'chart30', '30-Year Mortgage');
+
+                // 15-year analysis
+                const results15 = runAnalysis(15);
+                document.getElementById('crossover15').textContent = findCrossover(results15);
+                renderTable(results15, 'table15');
+                renderChart(results15, 'chart15', '15-Year Mortgage');
+
+                // Show results
+                document.getElementById('loading').style.display = 'none';
+                document.getElementById('results').style.display = 'block';
+            }, 100);
+        });
+    </script>
+</body>
+</html>
