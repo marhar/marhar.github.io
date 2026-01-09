@@ -1017,14 +1017,11 @@
             clearGraph();
         }
 
-        function applyPreset(kP, kI, kD, wind = 0) {
+        function applyPreset(kP, kI, kD, wind=0) {
             pSlider.value = kP;
             iSlider.value = kI;
             dSlider.value = kD;
-            fanSlider.value = wind;
             handleSliderChange();
-            resetPosition();
-            clearGraph();
         }
 
         // ============================================================
@@ -1054,9 +1051,9 @@
             document.getElementById('preset-p-only').addEventListener('click', () => applyPreset(6.0, 0, 0));
             document.getElementById('preset-pi').addEventListener('click', () => applyPreset(5.0, 0.1, 0));
             document.getElementById('preset-pd').addEventListener('click', () => applyPreset(6.0, 0, 2.0));
-            document.getElementById('preset-tuned').addEventListener('click', () => applyPreset(11, 0.1, 1.9, 0));
-            document.getElementById('preset-oscillate').addEventListener('click', () => applyPreset(5.0, 0.1, 0, 0));
-            document.getElementById('preset-sluggish').addEventListener('click', () => applyPreset(2.0, 0, 0));
+            document.getElementById('preset-tuned').addEventListener('click', () => applyPreset(5, 0.55, 2.54));
+            document.getElementById('preset-oscillate').addEventListener('click', () => applyPreset(17, 1.53, 0));
+            document.getElementById('preset-sluggish').addEventListener('click', () => applyPreset(0.5, 0.32, 3.95));
 
             // Initial slider values
             handleSliderChange();
