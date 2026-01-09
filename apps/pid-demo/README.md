@@ -15,6 +15,35 @@ A helicopter tries to hover at a target altitude. You tune the PID controller to
 - **Wind** adds a constant force to demonstrate steady-state error
 - **Disturbance** applies a sudden impulse to test rejection
 
+## Live Formula Display
+
+A real-time formula panel shows the PID calculation as it happens:
+
+```
+CURRENT STATE
+position:  0.25    velocity:  0.12
+setpoint:  0.50    error:     0.25
+───────────────────────────────────
+PID CALCULATION
+P = Kp × error
+  = 5.0 ×  0.25
+  =  1.25
+
+I = Ki × ∫error dt
+  = 0.10 ×  3.45
+  =  0.35
+
+D = Kd × d(error)/dt
+  = 1.00 × -2.30
+  = -2.30
+───────────────────────────────────
+thrust = P + I + D
+       =  1.25 +  0.35 + -2.30
+       = -0.70
+```
+
+This helps visualize how each term contributes to the final output in real-time.
+
 ## PID Tuning Theory
 
 ### The PID Equation
