@@ -176,7 +176,12 @@ function scenarioPayoffMortgage(balance, rate, years, lumpSum, startDate) {
 }
 
 /**
- * Scenario B: Keep mortgage, invest lump sum
+ * Scenario B: Keep mortgage, invest lump sum, make payments from investment
+ *
+ * This models the realistic scenario where:
+ * - You invest the lump sum in the S&P 500
+ * - Each month, you withdraw the mortgage payment from the investment
+ * - If the investment runs out before the mortgage is paid off, you've "failed"
  *
  * @param {number} balance - Mortgage balance
  * @param {number} rate - Annual interest rate
@@ -188,6 +193,7 @@ function scenarioPayoffMortgage(balance, rate, years, lumpSum, startDate) {
 function scenarioInvestLumpSum(balance, rate, years, lumpSum, startDate) {
     // Calculate normal mortgage schedule
     const amortization = calculateAmortizationSchedule(balance, rate, years);
+    const monthlyPayment = amortization.monthlyPayment;
     const totalMonths = years * 12;
 
     // Get S&P 500 returns
@@ -199,6 +205,8 @@ function scenarioInvestLumpSum(balance, rate, years, lumpSum, startDate) {
     let investmentBalance = lumpSum;
     let mortgageBalance = balance;
     let totalInterest = 0;
+    let failed = false;
+    let failureMonth = null;
     const monthlyNetWorth = [];
     const monthlyInvestment = [];
     const monthlyMortgage = [];
@@ -207,12 +215,23 @@ function scenarioInvestLumpSum(balance, rate, years, lumpSum, startDate) {
         // Apply S&P 500 return to investment
         investmentBalance *= (1 + monthlyReturns[month - 1]);
 
-        // Update mortgage balance
+        // Withdraw monthly payment from investment to pay mortgage
+        investmentBalance -= monthlyPayment;
+
+        // Check if investment has run out (failure - can't make payments)
+        if (investmentBalance <= 0 && !failed) {
+            failed = true;
+            failureMonth = month;
+            investmentBalance = 0; // Can't go negative
+        }
+
+        // Update mortgage balance (still tracked even if failed, for comparison)
         const scheduleEntry = amortization.schedule[month - 1];
         mortgageBalance = scheduleEntry.balance;
         totalInterest += scheduleEntry.interest;
 
         // Net worth = investment - mortgage balance
+        // If failed, investment is 0, so net worth is negative (you still owe the mortgage)
         const netWorth = investmentBalance - mortgageBalance;
 
         monthlyNetWorth.push(netWorth);
@@ -230,7 +249,9 @@ function scenarioInvestLumpSum(balance, rate, years, lumpSum, startDate) {
         monthlyMortgage,
         truncated: monthlyData.truncated,
         latestDataDate: monthlyData.latestDataDate,
-        actualMonths
+        actualMonths,
+        failed,
+        failureMonth
     };
 }
 

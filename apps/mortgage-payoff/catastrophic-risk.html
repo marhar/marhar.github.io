@@ -359,7 +359,7 @@
                 mortgageBalances.push(mortgageBalance);
             }
 
-            // Calculate investment value over time
+            // Calculate investment value over time (with drawdown for payments)
             const investValues = [];
             let investValue = balance;
             let peak = balance;
@@ -367,24 +367,40 @@
             let underwaterMonths = 0;
             let deepestUnderwater = 0;
             let minCoverage = Infinity;
+            let failed = false;
+            let failureMonth = null;
 
             for (let i = 0; i < totalMonths; i++) {
+                // Apply S&P 500 return
                 investValue *= (1 + returns[i]);
+
+                // Withdraw monthly payment from investment
+                investValue -= monthlyPayment;
+
+                // Check for failure (investment depleted)
+                if (investValue <= 0 && !failed) {
+                    failed = true;
+                    failureMonth = i + 1;
+                    investValue = 0;
+                }
+
                 investValues.push(investValue);
 
-                // Track peak and drawdown
-                if (investValue > peak) peak = investValue;
-                const drawdown = (peak - investValue) / peak;
-                if (drawdown > maxDrawdown) maxDrawdown = drawdown;
+                // Track peak and drawdown (before failure)
+                if (!failed) {
+                    if (investValue > peak) peak = investValue;
+                    const drawdown = (peak - investValue) / peak;
+                    if (drawdown > maxDrawdown) maxDrawdown = drawdown;
+                }
 
-                // Track underwater status
+                // Track underwater status (investment < mortgage balance)
                 if (investValue < mortgageBalances[i]) {
                     underwaterMonths++;
                     const gap = mortgageBalances[i] - investValue;
                     if (gap > deepestUnderwater) deepestUnderwater = gap;
                 }
 
-                // Track payment coverage
+                // Track payment coverage (how many months of payments investment could cover)
                 const coverage = investValue / monthlyPayment;
                 if (coverage < minCoverage) minCoverage = coverage;
             }
@@ -398,7 +414,9 @@
                 finalMortgage: mortgageBalances[totalMonths - 1],
                 investValues,
                 mortgageBalances,
-                winner: investValue > 0 ? 'Invest' : 'Payoff'
+                failed,
+                failureMonth,
+                winner: !failed && investValue > 0 ? 'Invest' : 'Payoff'
             };
         }
 
