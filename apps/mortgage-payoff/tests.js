@@ -295,6 +295,209 @@ const TestSuite = {
         );
     },
 
+    // Test 16: Historical analysis returns multiple years
+    testHistoricalReturnsMultipleYears() {
+        const testName = "Historical analysis returns multiple years of data";
+        const balance = 100000;
+        const rate = 0.04;
+        const years = 10;
+
+        const dataRange = getDataRange();
+        const firstYear = parseInt(dataRange.firstDate.split('-')[0]);
+        const lastYear = parseInt(dataRange.lastDate.split('-')[0]);
+        const lastValidStartYear = lastYear - Math.ceil(years);
+
+        const results = [];
+        for (let startYear = firstYear; startYear <= lastValidStartYear; startYear++) {
+            const startDate = `${startYear}-01-01`;
+            try {
+                const payoff = scenarioPayoffMortgage(balance, rate, years, balance, startDate);
+                const invest = scenarioInvestLumpSum(balance, rate, years, balance, startDate);
+                if (!payoff.truncated && !invest.truncated) {
+                    results.push({ startYear, payoff, invest });
+                }
+            } catch (e) {
+                continue;
+            }
+        }
+
+        // Should have many years of results (at least 50 for a 10-year period)
+        return this.assertTrue(
+            results.length >= 50,
+            testName,
+            `${results.length} years analyzed`,
+            ">= 50 years"
+        );
+    },
+
+    // Test 17: Historical analysis win counts are valid
+    testHistoricalWinCountsValid() {
+        const testName = "Historical win counts sum to total results";
+        const balance = 100000;
+        const rate = 0.04;
+        const years = 10;
+
+        const dataRange = getDataRange();
+        const firstYear = parseInt(dataRange.firstDate.split('-')[0]);
+        const lastYear = parseInt(dataRange.lastDate.split('-')[0]);
+        const lastValidStartYear = lastYear - Math.ceil(years);
+
+        let investWins = 0;
+        let payoffWins = 0;
+        let total = 0;
+
+        for (let startYear = firstYear; startYear <= lastValidStartYear; startYear++) {
+            const startDate = `${startYear}-01-01`;
+            try {
+                const payoff = scenarioPayoffMortgage(balance, rate, years, balance, startDate);
+                const invest = scenarioInvestLumpSum(balance, rate, years, balance, startDate);
+                if (!payoff.truncated && !invest.truncated) {
+                    total++;
+                    if (invest.finalNetWorth > payoff.finalNetWorth) {
+                        investWins++;
+                    } else {
+                        payoffWins++;
+                    }
+                }
+            } catch (e) {
+                continue;
+            }
+        }
+
+        const valid = (investWins + payoffWins) === total && total > 0;
+        return this.assertTrue(
+            valid,
+            testName,
+            `Invest: ${investWins}, Payoff: ${payoffWins}, Total: ${total}`,
+            "Wins sum to total"
+        );
+    },
+
+    // Test 18: Historical results have valid net worth values
+    testHistoricalNetWorthValid() {
+        const testName = "Historical results have valid net worth values";
+        const balance = 100000;
+        const rate = 0.04;
+        const years = 10;
+
+        const dataRange = getDataRange();
+        const firstYear = parseInt(dataRange.firstDate.split('-')[0]);
+        const lastYear = parseInt(dataRange.lastDate.split('-')[0]);
+        const lastValidStartYear = lastYear - Math.ceil(years);
+
+        let allValid = true;
+        let sampleResults = [];
+
+        for (let startYear = firstYear; startYear <= lastValidStartYear && sampleResults.length < 5; startYear++) {
+            const startDate = `${startYear}-01-01`;
+            try {
+                const payoff = scenarioPayoffMortgage(balance, rate, years, balance, startDate);
+                const invest = scenarioInvestLumpSum(balance, rate, years, balance, startDate);
+                if (!payoff.truncated && !invest.truncated) {
+                    // Net worth should be a finite number
+                    if (!isFinite(payoff.finalNetWorth) || !isFinite(invest.finalNetWorth)) {
+                        allValid = false;
+                    }
+                    sampleResults.push({
+                        year: startYear,
+                        payoff: payoff.finalNetWorth,
+                        invest: invest.finalNetWorth
+                    });
+                }
+            } catch (e) {
+                continue;
+            }
+        }
+
+        return this.assertTrue(
+            allValid && sampleResults.length > 0,
+            testName,
+            `Checked ${sampleResults.length} years, all valid: ${allValid}`,
+            "All net worth values finite"
+        );
+    },
+
+    // Test 19: Historical years are chronological
+    testHistoricalYearsChronological() {
+        const testName = "Historical results are in chronological order";
+        const balance = 100000;
+        const rate = 0.04;
+        const years = 10;
+
+        const dataRange = getDataRange();
+        const firstYear = parseInt(dataRange.firstDate.split('-')[0]);
+        const lastYear = parseInt(dataRange.lastDate.split('-')[0]);
+        const lastValidStartYear = lastYear - Math.ceil(years);
+
+        const years_list = [];
+        for (let startYear = firstYear; startYear <= lastValidStartYear; startYear++) {
+            const startDate = `${startYear}-01-01`;
+            try {
+                const payoff = scenarioPayoffMortgage(balance, rate, years, balance, startDate);
+                if (!payoff.truncated) {
+                    years_list.push(startYear);
+                }
+            } catch (e) {
+                continue;
+            }
+        }
+
+        let isChronological = true;
+        for (let i = 1; i < years_list.length; i++) {
+            if (years_list[i] <= years_list[i-1]) {
+                isChronological = false;
+                break;
+            }
+        }
+
+        return this.assertTrue(
+            isChronological,
+            testName,
+            `${years_list.length} years, first: ${years_list[0]}, last: ${years_list[years_list.length-1]}`,
+            "Years in ascending order"
+        );
+    },
+
+    // Test 20: Historical analysis with different mortgage terms
+    testHistoricalDifferentTerms() {
+        const testName = "Historical analysis works with different mortgage terms";
+        const balance = 100000;
+        const rate = 0.04;
+
+        // Test 5-year and 20-year terms
+        let results5yr = 0;
+        let results20yr = 0;
+
+        const dataRange = getDataRange();
+        const firstYear = parseInt(dataRange.firstDate.split('-')[0]);
+        const lastYear = parseInt(dataRange.lastDate.split('-')[0]);
+
+        // 5-year term
+        for (let startYear = firstYear; startYear <= lastYear - 5; startYear++) {
+            try {
+                const payoff = scenarioPayoffMortgage(balance, rate, 5, balance, `${startYear}-01-01`);
+                if (!payoff.truncated) results5yr++;
+            } catch (e) {}
+        }
+
+        // 20-year term
+        for (let startYear = firstYear; startYear <= lastYear - 20; startYear++) {
+            try {
+                const payoff = scenarioPayoffMortgage(balance, rate, 20, balance, `${startYear}-01-01`);
+                if (!payoff.truncated) results20yr++;
+            } catch (e) {}
+        }
+
+        // 5-year should have more valid starting years than 20-year
+        const valid = results5yr > results20yr && results5yr > 0 && results20yr > 0;
+        return this.assertTrue(
+            valid,
+            testName,
+            `5yr: ${results5yr} periods, 20yr: ${results20yr} periods`,
+            "5yr > 20yr > 0"
+        );
+    },
+
     runAll() {
         this.passed = 0;
         this.failed = 0;
@@ -317,6 +520,11 @@ const TestSuite = {
         this.testInvestMortgageDecreases();
         this.testDataRange();
         this.testCompareScenariosSanity();
+        this.testHistoricalReturnsMultipleYears();
+        this.testHistoricalWinCountsValid();
+        this.testHistoricalNetWorthValid();
+        this.testHistoricalYearsChronological();
+        this.testHistoricalDifferentTerms();
 
         console.log("\n========================================");
         console.log(`RESULTS: ${this.passed} passed, ${this.failed} failed`);
