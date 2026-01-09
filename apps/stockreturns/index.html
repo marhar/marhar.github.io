@@ -97,6 +97,7 @@
     <main>
         <section>
             <h2>Investment Parameters</h2>
+            <p id="dataFreshness" class="note" style="margin-bottom: 1rem;"></p>
             <form id="calculatorForm">
                 <label for="initial">Initial Investment ($)</label>
                 <input type="number" id="initial" name="initial" value="10000" min="0" step="100" required>
@@ -119,6 +120,8 @@
 
         <section id="resultsSection">
             <h2>Results</h2>
+
+            <div id="warningsContainer" class="note" style="display: none; background: #fff3cd; padding: 1rem; border: 1px solid #ffc107; border-radius: 4px; margin-bottom: 1rem;"></div>
 
             <div class="summary-grid">
                 <div class="summary-card">
@@ -160,13 +163,14 @@
 
             <div id="annualBreakdown">
                 <h3>Annual Breakdown</h3>
-                <p class="note">Note: Portfolio Growth % includes both market returns AND new contributions</p>
+                <p class="note">Market Return shows pure investment gains; Portfolio Growth includes contributions</p>
                 <table id="annualTable">
                     <thead>
                         <tr>
                             <th>Year</th>
                             <th>End Value</th>
                             <th>Total Invested</th>
+                            <th>Market Return</th>
                             <th>Portfolio Growth</th>
                         </tr>
                     </thead>

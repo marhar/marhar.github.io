@@ -4,6 +4,40 @@
  */
 
 /**
+ * Get the available data range from the SP500 data
+ */
+function getDataRange() {
+    const dates = Object.keys(SP500_MONTHLY_RETURNS).sort();
+    return {
+        firstDate: dates[0],
+        lastDate: dates[dates.length - 1],
+        count: dates.length
+    };
+}
+
+/**
+ * Validate that the selected date range is within available data
+ */
+function validateDateRange(startDate, endDate) {
+    const dataRange = getDataRange();
+
+    const startMonth = startDate.substring(0, 7);
+    const endMonth = endDate.substring(0, 7);
+
+    const warnings = [];
+
+    if (startMonth < dataRange.firstDate) {
+        warnings.push(`Start date is before available data (${dataRange.firstDate}). Results will begin from ${dataRange.firstDate}.`);
+    }
+
+    if (endMonth > dataRange.lastDate) {
+        warnings.push(`End date extends beyond available data (${dataRange.lastDate}). Results will end at ${dataRange.lastDate}.`);
+    }
+
+    return warnings;
+}
+
+/**
  * Calculate Internal Rate of Return using Newton-Raphson method
  * Replicates numpy_financial.irr()
  *
@@ -126,8 +160,14 @@ function calculateFutureValueActual(initialValue, monthlyInvestment, monthlyRetu
             const prevYearData = yearEndData[prevYear];
             yearEndData[year] = {
                 startBalance: prevYearData ? prevYearData.endBalance : initialValue,
-                startInvested: prevYearData ? prevYearData.endInvested : initialValue
+                startInvested: prevYearData ? prevYearData.endInvested : initialValue,
+                contributionsThisYear: 0
             };
+        }
+
+        // Track contributions made this year (after first month)
+        if (i > 0) {
+            yearEndData[year].contributionsThisYear += monthlyInvestment;
         }
 
         yearEndData[year].endBalance = balance;
@@ -156,12 +196,19 @@ function calculateFutureValueActual(initialValue, monthlyInvestment, monthlyRetu
     const annualSummary = [];
     for (const year in yearEndData) {
         const data = yearEndData[year];
-        const annualReturn = ((data.endBalance - data.startBalance) / data.startBalance * 100);
+        const portfolioGrowth = ((data.endBalance - data.startBalance) / data.startBalance * 100);
+
+        // Pure market return = (end balance - start balance - contributions) / start balance
+        const marketGain = data.endBalance - data.startBalance - data.contributionsThisYear;
+        const pureMarketReturn = (marketGain / data.startBalance * 100);
+
         annualSummary.push({
             year: parseInt(year),
             endValue: data.endBalance,
             totalInvested: data.endInvested,
-            annualReturn: annualReturn
+            contributionsThisYear: data.contributionsThisYear,
+            portfolioGrowth: portfolioGrowth,
+            pureMarketReturn: pureMarketReturn
         });
     }
 
@@ -278,11 +325,13 @@ function displayAnnualBreakdown(annualSummary) {
 
     for (const row of annualSummary) {
         const tr = document.createElement('tr');
+        const marketReturnClass = row.pureMarketReturn >= 0 ? 'positive' : 'negative';
         tr.innerHTML = `
             <td>${row.year}</td>
             <td>${formatCurrency(row.endValue)}</td>
             <td>${formatCurrency(row.totalInvested)}</td>
-            <td>${formatPercent(row.annualReturn)}</td>
+            <td class="${marketReturnClass}">${formatPercent(row.pureMarketReturn)}</td>
+            <td>${formatPercent(row.portfolioGrowth)}</td>
         `;
         tbody.appendChild(tr);
     }
@@ -370,6 +419,33 @@ function displayChart(actualBalances, constantBalances, dates) {
 }
 
 /**
+ * Display data freshness indicator
+ */
+function displayDataFreshness() {
+    const dataRange = getDataRange();
+    const indicator = document.getElementById('dataFreshness');
+    if (indicator) {
+        indicator.textContent = `Data: ${dataRange.firstDate} to ${dataRange.lastDate} (${dataRange.count} months)`;
+    }
+}
+
+/**
+ * Display warnings
+ */
+function displayWarnings(warnings) {
+    const container = document.getElementById('warningsContainer');
+    if (!container) return;
+
+    if (warnings.length === 0) {
+        container.style.display = 'none';
+        return;
+    }
+
+    container.style.display = 'block';
+    container.innerHTML = warnings.map(w => `<p>⚠️ ${w}</p>`).join('');
+}
+
+/**
  * Form submission handler
  */
 document.getElementById('calculatorForm').addEventListener('submit', function(e) {
@@ -401,6 +477,10 @@ document.getElementById('calculatorForm').addEventListener('submit', function(e)
 
         // Format end date as YYYY-MM-DD
         const endDate = end.toISOString().split('T')[0];
+
+        // Validate date range and show warnings
+        const warnings = validateDateRange(startDate, endDate);
+        displayWarnings(warnings);
 
         // Get monthly returns
         const { returns: monthlyReturns, dates } = getMonthlyReturns(startDate, endDate);
@@ -434,5 +514,17 @@ document.getElementById('calculatorForm').addEventListener('submit', function(e)
     } catch (error) {
         alert('Error: ' + error.message);
         console.error(error);
+    }
+});
+
+// Initialize on page load
+document.addEventListener('DOMContentLoaded', function() {
+    displayDataFreshness();
+
+    // Update date input constraints based on available data
+    const dataRange = getDataRange();
+    const startInput = document.getElementById('startDate');
+    if (startInput) {
+        startInput.min = dataRange.firstDate + '-01';
     }
 });
