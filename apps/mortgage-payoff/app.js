@@ -4,11 +4,32 @@
  */
 
 /**
+ * Get the data range from S&P 500 data
+ */
+function getDataRange() {
+    const dates = Object.keys(SP500_MONTHLY_RETURNS).sort();
+    return {
+        firstDate: dates[0],
+        lastDate: dates[dates.length - 1]
+    };
+}
+
+/**
  * Get the latest available date in S&P 500 data
  */
 function getLatestDataDate() {
-    const dates = Object.keys(SP500_MONTHLY_RETURNS).sort();
-    return dates[dates.length - 1];
+    return getDataRange().lastDate;
+}
+
+/**
+ * Display data freshness indicator
+ */
+function displayDataFreshness() {
+    const dataRange = getDataRange();
+    const freshnessEl = document.getElementById('dataFreshness');
+    if (freshnessEl) {
+        freshnessEl.textContent = `S&P 500 data: ${dataRange.firstDate} to ${dataRange.lastDate}`;
+    }
 }
 
 /**
@@ -18,15 +39,18 @@ function getLatestDataDate() {
 function getMonthlyReturns(startDate, numMonths) {
     const returns = [];
     const dates = [];
-    const start = new Date(startDate);
     const latestDataDate = getLatestDataDate();
 
-    let current = new Date(start.getFullYear(), start.getMonth(), 1);
+    // Parse dates as local time by splitting the string (avoids timezone issues)
+    const startParts = startDate.split('-').map(Number);
+    let year = startParts[0];
+    let month = startParts[1]; // 1-indexed
+
     let monthsProcessed = 0;
     let truncated = false;
 
     for (let i = 0; i < numMonths; i++) {
-        const yearMonth = `${current.getFullYear()}-${String(current.getMonth() + 1).padStart(2, '0')}`;
+        const yearMonth = `${year}-${String(month).padStart(2, '0')}`;
 
         // Stop if we've gone beyond available data
         if (yearMonth > latestDataDate) {
@@ -45,7 +69,12 @@ function getMonthlyReturns(startDate, numMonths) {
             monthsProcessed++;
         }
 
-        current.setMonth(current.getMonth() + 1);
+        // Move to next month
+        month++;
+        if (month > 12) {
+            month = 1;
+            year++;
+        }
     }
 
     return {
@@ -404,5 +433,23 @@ document.getElementById('calculatorForm').addEventListener('submit', function(e)
     } catch (error) {
         alert('Error: ' + error.message);
         console.error(error);
+    }
+});
+
+// Initialize on page load
+document.addEventListener('DOMContentLoaded', function() {
+    displayDataFreshness();
+
+    // Update date input constraints based on available data
+    const dataRange = getDataRange();
+    const startInput = document.getElementById('startDate');
+    if (startInput) {
+        startInput.min = dataRange.firstDate + '-01';
+    }
+
+    // Calculate with default parameters on page load
+    const form = document.getElementById('calculatorForm');
+    if (form) {
+        form.dispatchEvent(new Event('submit'));
     }
 });
