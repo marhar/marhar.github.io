@@ -308,6 +308,46 @@
             font-family: var(--font-mono);
             font-size: 12px;
         }
+
+        /* Formula display panel */
+        .sim-row {
+            display: flex;
+            gap: 15px;
+            align-items: flex-start;
+        }
+
+        .formula-panel {
+            font-family: var(--font-mono);
+            font-size: 12px;
+            background: #1a1a2e;
+            color: #00ff88;
+            padding: 12px;
+            border-radius: var(--border-radius);
+            min-width: 280px;
+            line-height: 1.6;
+        }
+
+        .formula-panel .formula-title {
+            color: #888;
+            margin-bottom: 8px;
+            border-bottom: 1px solid #333;
+            padding-bottom: 4px;
+        }
+
+        .formula-panel .formula-line {
+            white-space: pre;
+        }
+
+        .formula-panel .p-term { color: #ff6b6b; }
+        .formula-panel .i-term { color: #4ecdc4; }
+        .formula-panel .d-term { color: #ffe66d; }
+        .formula-panel .result { color: #00ff88; font-weight: bold; }
+        .formula-panel .label { color: #888; }
+        .formula-panel .operator { color: #fff; }
+        .formula-panel .separator {
+            border-top: 1px solid #333;
+            margin: 6px 0;
+        }
     </style>
 </head>
 <body>
@@ -327,7 +367,31 @@
 
         <div class="viz-panel">
             <h3>Helicopter Hover (click to set altitude)</h3>
-            <canvas id="sim-canvas"></canvas>
+            <div class="sim-row">
+                <canvas id="sim-canvas"></canvas>
+                <div class="formula-panel" id="formula-panel">
+                    <div class="formula-title">CURRENT STATE</div>
+                    <div class="formula-line"><span class="label">position:</span> <span id="f-position">0.00</span>    <span class="label">velocity:</span> <span id="f-velocity">0.00</span></div>
+                    <div class="formula-line"><span class="label">setpoint:</span> <span id="f-setpoint">0.00</span>    <span class="label">error:</span>    <span id="f-error">0.00</span></div>
+                    <div class="separator"></div>
+                    <div class="formula-title">PID CALCULATION</div>
+                    <div class="formula-line"><span class="p-term">P</span> = Kp × error</div>
+                    <div class="formula-line"><span class="p-term"> </span> = <span id="f-kp">5.0</span> × <span id="f-error2">0.00</span></div>
+                    <div class="formula-line"><span class="p-term"> </span> = <span class="p-term" id="f-p-result">0.00</span></div>
+                    <div class="separator"></div>
+                    <div class="formula-line"><span class="i-term">I</span> = Ki × ∫error dt</div>
+                    <div class="formula-line"><span class="i-term"> </span> = <span id="f-ki">0.00</span> × <span id="f-integral">0.00</span></div>
+                    <div class="formula-line"><span class="i-term"> </span> = <span class="i-term" id="f-i-result">0.00</span></div>
+                    <div class="separator"></div>
+                    <div class="formula-line"><span class="d-term">D</span> = Kd × d(error)/dt</div>
+                    <div class="formula-line"><span class="d-term"> </span> = <span id="f-kd">1.00</span> × <span id="f-derivative">0.00</span></div>
+                    <div class="formula-line"><span class="d-term"> </span> = <span class="d-term" id="f-d-result">0.00</span></div>
+                    <div class="separator"></div>
+                    <div class="formula-line"><span class="result">thrust</span> = <span class="p-term">P</span> <span class="operator">+</span> <span class="i-term">I</span> <span class="operator">+</span> <span class="d-term">D</span></div>
+                    <div class="formula-line"><span class="result">      </span> = <span class="p-term" id="f-p-val">0.00</span> <span class="operator">+</span> <span class="i-term" id="f-i-val">0.00</span> <span class="operator">+</span> <span class="d-term" id="f-d-val">0.00</span></div>
+                    <div class="formula-line"><span class="result">      </span> = <span class="result" id="f-output">0.00</span></div>
+                </div>
+            </div>
 
             <h3 style="margin-top: 15px;">Response Graph</h3>
             <canvas id="graph-canvas"></canvas>
@@ -405,25 +469,6 @@
                 </div>
             </div>
 
-            <div class="stats">
-                <h4>Current State</h4>
-                <div class="stat-row">
-                    <span class="label">Position:</span>
-                    <span class="value" id="stat-position">0.00</span>
-                </div>
-                <div class="stat-row">
-                    <span class="label">Setpoint:</span>
-                    <span class="value" id="stat-setpoint">0.00</span>
-                </div>
-                <div class="stat-row">
-                    <span class="label">Error:</span>
-                    <span class="value" id="stat-error">0.00</span>
-                </div>
-                <div class="stat-row">
-                    <span class="label">Thrust (PID out):</span>
-                    <span class="value" id="stat-output">0.00</span>
-                </div>
-            </div>
         </div>
 
         <div class="instructions">
@@ -528,6 +573,36 @@
         const statError = document.getElementById('stat-error');
         const statOutput = document.getElementById('stat-output');
 
+        // Formula display elements
+        const fSetpoint = document.getElementById('f-setpoint');
+        const fPosition = document.getElementById('f-position');
+        const fVelocity = document.getElementById('f-velocity');
+        const fError = document.getElementById('f-error');
+        const fError2 = document.getElementById('f-error2');
+        const fKp = document.getElementById('f-kp');
+        const fKi = document.getElementById('f-ki');
+        const fKd = document.getElementById('f-kd');
+        const fIntegral = document.getElementById('f-integral');
+        const fDerivative = document.getElementById('f-derivative');
+        const fPResult = document.getElementById('f-p-result');
+        const fIResult = document.getElementById('f-i-result');
+        const fDResult = document.getElementById('f-d-result');
+        const fPVal = document.getElementById('f-p-val');
+        const fIVal = document.getElementById('f-i-val');
+        const fDVal = document.getElementById('f-d-val');
+        const fOutput = document.getElementById('f-output');
+
+        // Store PID terms for display
+        const pidTerms = { pTerm: 0, iTerm: 0, dTerm: 0, derivative: 0 };
+
+        // Format number avoiding -0.00, with leading space for positive numbers
+        function fmt(val, decimals = 2) {
+            const rounded = Math.round(val * Math.pow(10, decimals)) / Math.pow(10, decimals);
+            const num = rounded === 0 ? 0 : rounded;
+            const str = num.toFixed(decimals);
+            return num >= 0 ? ' ' + str : str;
+        }
+
         // ============================================================
         // Canvas Setup
         // ============================================================
@@ -568,6 +643,12 @@
             const derivative = (error - state.lastError) / CONFIG.dt;
             const dTerm = state.kD * derivative;
             state.lastError = error;
+
+            // Store terms for formula display
+            pidTerms.pTerm = pTerm;
+            pidTerms.iTerm = iTerm;
+            pidTerms.dTerm = dTerm;
+            pidTerms.derivative = derivative;
 
             // Combined output (clamped)
             let output = pTerm + iTerm + dTerm;
@@ -922,6 +1003,37 @@
             statOutput.textContent = state.output.toFixed(2);
         }
 
+        function updateFormula() {
+            const error = state.setpoint - state.position;
+
+            // Update state display
+            fPosition.textContent = fmt(state.position);
+            fVelocity.textContent = fmt(state.velocity);
+            fSetpoint.textContent = fmt(state.setpoint);
+            fError.textContent = fmt(error);
+            fError2.textContent = fmt(error);
+
+            // Update P term
+            fKp.textContent = fmt(state.kP, 1);
+            fPResult.textContent = fmt(pidTerms.pTerm);
+
+            // Update I term
+            fKi.textContent = fmt(state.kI);
+            fIntegral.textContent = fmt(state.integral);
+            fIResult.textContent = fmt(pidTerms.iTerm);
+
+            // Update D term
+            fKd.textContent = fmt(state.kD);
+            fDerivative.textContent = fmt(pidTerms.derivative);
+            fDResult.textContent = fmt(pidTerms.dTerm);
+
+            // Update final calculation
+            fPVal.textContent = fmt(pidTerms.pTerm);
+            fIVal.textContent = fmt(pidTerms.iTerm);
+            fDVal.textContent = fmt(pidTerms.dTerm);
+            fOutput.textContent = fmt(state.output);
+        }
+
         // ============================================================
         // Animation Loop
         // ============================================================
@@ -932,7 +1044,7 @@
             }
             drawSimulation();
             drawGraph();
-            updateStats();
+            updateFormula();
             requestAnimationFrame(animate);
         }
 
