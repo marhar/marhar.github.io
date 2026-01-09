@@ -1,0 +1,974 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Double Pendulum Simulator</title>
+    <style>
+        :root {
+            --color-primary: #3498db;
+            --color-secondary: #9b59b6;
+            --color-accent: #e74c3c;
+            --color-success: #2ecc71;
+            --color-text: #333;
+            --color-text-light: #666;
+            --color-bg: #f8f9fa;
+            --color-border: #ddd;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: var(--color-bg);
+            color: var(--color-text);
+            min-height: 100vh;
+        }
+
+        .container {
+            display: grid;
+            grid-template-columns: 280px 1fr;
+            grid-template-rows: auto 1fr;
+            gap: 15px;
+            padding: 15px;
+            max-width: 1400px;
+            margin: 0 auto;
+            min-height: 100vh;
+        }
+
+        header {
+            grid-column: 1 / -1;
+            text-align: center;
+            padding: 10px;
+        }
+
+        header h1 {
+            font-size: 24px;
+            margin-bottom: 5px;
+        }
+
+        header p {
+            color: var(--color-text-light);
+            font-size: 14px;
+        }
+
+        /* Control Panel */
+        .controls {
+            background: white;
+            border-radius: 8px;
+            padding: 15px;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+            overflow-y: auto;
+            max-height: calc(100vh - 100px);
+        }
+
+        .controls h3 {
+            font-size: 14px;
+            margin-bottom: 15px;
+            padding-bottom: 10px;
+            border-bottom: 1px solid var(--color-border);
+        }
+
+        .control-group {
+            margin-bottom: 15px;
+        }
+
+        .control-group label {
+            display: flex;
+            justify-content: space-between;
+            font-size: 12px;
+            margin-bottom: 5px;
+            color: var(--color-text-light);
+        }
+
+        .control-group label span {
+            font-weight: bold;
+            color: var(--color-text);
+        }
+
+        .control-group input[type="range"] {
+            width: 100%;
+            cursor: pointer;
+        }
+
+        .button-group {
+            display: flex;
+            gap: 8px;
+            margin-bottom: 15px;
+        }
+
+        button {
+            flex: 1;
+            padding: 10px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 13px;
+            font-weight: 500;
+            transition: background 0.2s;
+        }
+
+        button.primary {
+            background: var(--color-primary);
+            color: white;
+        }
+
+        button.primary:hover {
+            background: #2980b9;
+        }
+
+        button.danger {
+            background: var(--color-accent);
+            color: white;
+        }
+
+        button.danger:hover {
+            background: #c0392b;
+        }
+
+        button.preset {
+            background: #e8e0ed;
+            color: #333;
+            font-size: 11px;
+            padding: 8px;
+        }
+
+        button.preset:hover {
+            background: #d4c4de;
+        }
+
+        .stats {
+            background: var(--color-bg);
+            border-radius: 4px;
+            padding: 10px;
+            font-size: 11px;
+            font-family: ui-monospace, monospace;
+        }
+
+        .stats div {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 4px;
+        }
+
+        .stats .label {
+            color: var(--color-text-light);
+        }
+
+        /* Main visualization area */
+        .main {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            grid-template-rows: 1.2fr 1fr;
+            gap: 15px;
+        }
+
+        .panel {
+            background: white;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .panel-header {
+            padding: 10px 15px;
+            font-size: 13px;
+            font-weight: 600;
+            border-bottom: 1px solid var(--color-border);
+            background: var(--color-bg);
+        }
+
+        .panel-content {
+            flex: 1;
+            position: relative;
+        }
+
+        .panel canvas {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+        }
+
+        .pendulum-panel {
+            grid-column: 1 / -1;
+        }
+
+        /* Legend */
+        .legend {
+            display: flex;
+            gap: 15px;
+            padding: 8px 15px;
+            font-size: 11px;
+            border-top: 1px solid var(--color-border);
+        }
+
+        .legend-item {
+            display: flex;
+            align-items: center;
+            gap: 5px;
+        }
+
+        .legend-color {
+            width: 12px;
+            height: 3px;
+            border-radius: 2px;
+        }
+
+        .color-theta1 { background: var(--color-primary); }
+        .color-theta2 { background: var(--color-secondary); }
+        .color-ke { background: var(--color-accent); }
+        .color-pe { background: var(--color-primary); }
+        .color-total { background: var(--color-success); }
+
+        /* Responsive */
+        @media (max-width: 900px) {
+            .container {
+                grid-template-columns: 1fr;
+            }
+            .main {
+                grid-template-columns: 1fr;
+                grid-template-rows: 300px repeat(3, 200px);
+            }
+            .pendulum-panel {
+                grid-column: 1;
+            }
+            .controls {
+                max-height: none;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>Double Pendulum Simulator</h1>
+            <p>A chaotic system demonstrating sensitive dependence on initial conditions</p>
+        </header>
+
+        <aside class="controls">
+            <h3>Parameters</h3>
+
+            <div class="control-group">
+                <label>Mass 1 (kg) <span id="m1-val">1.0</span></label>
+                <input type="range" id="m1" min="0.1" max="5" step="0.1" value="1">
+            </div>
+
+            <div class="control-group">
+                <label>Mass 2 (kg) <span id="m2-val">1.0</span></label>
+                <input type="range" id="m2" min="0.1" max="5" step="0.1" value="1">
+            </div>
+
+            <div class="control-group">
+                <label>Length 1 (m) <span id="L1-val">1.0</span></label>
+                <input type="range" id="L1" min="0.5" max="2" step="0.1" value="1">
+            </div>
+
+            <div class="control-group">
+                <label>Length 2 (m) <span id="L2-val">1.0</span></label>
+                <input type="range" id="L2" min="0.5" max="2" step="0.1" value="1">
+            </div>
+
+            <div class="control-group">
+                <label>Initial Angle 1 (°) <span id="theta1-val">120</span></label>
+                <input type="range" id="theta1" min="-180" max="180" step="1" value="120">
+            </div>
+
+            <div class="control-group">
+                <label>Initial Angle 2 (°) <span id="theta2-val">120</span></label>
+                <input type="range" id="theta2" min="-180" max="180" step="1" value="120">
+            </div>
+
+            <div class="control-group">
+                <label>Gravity (m/s²) <span id="g-val">9.81</span></label>
+                <input type="range" id="g" min="1" max="20" step="0.1" value="9.81">
+            </div>
+
+            <div class="control-group">
+                <label>Damping <span id="damping-val">0.000</span></label>
+                <input type="range" id="damping" min="0" max="0.1" step="0.001" value="0">
+            </div>
+
+            <div class="control-group">
+                <label>Speed <span id="speed-val">1.0</span>x</label>
+                <input type="range" id="speed" min="0.1" max="3" step="0.1" value="1">
+            </div>
+
+            <div class="button-group">
+                <button class="primary" id="start-btn">Start</button>
+                <button class="danger" id="reset-btn">Reset</button>
+            </div>
+
+            <h3>Presets</h3>
+            <div class="button-group">
+                <button class="preset" id="preset1-btn">120° / 120°</button>
+                <button class="preset" id="preset2-btn">120° / 121°</button>
+            </div>
+
+            <h3>Statistics</h3>
+            <div class="stats">
+                <div><span class="label">Time:</span> <span id="stat-time">0.00 s</span></div>
+                <div><span class="label">θ₁:</span> <span id="stat-theta1">120.0°</span></div>
+                <div><span class="label">θ₂:</span> <span id="stat-theta2">120.0°</span></div>
+                <div><span class="label">ω₁:</span> <span id="stat-omega1">0.00 rad/s</span></div>
+                <div><span class="label">ω₂:</span> <span id="stat-omega2">0.00 rad/s</span></div>
+                <div><span class="label">Energy:</span> <span id="stat-energy">0.00 J</span></div>
+            </div>
+        </aside>
+
+        <main class="main">
+            <div class="panel pendulum-panel">
+                <div class="panel-header">Pendulum Animation</div>
+                <div class="panel-content">
+                    <canvas id="pendulum-canvas"></canvas>
+                </div>
+            </div>
+
+            <div class="panel">
+                <div class="panel-header">Angles vs Time</div>
+                <div class="panel-content">
+                    <canvas id="angle-canvas"></canvas>
+                </div>
+                <div class="legend">
+                    <div class="legend-item"><div class="legend-color color-theta1"></div> θ₁</div>
+                    <div class="legend-item"><div class="legend-color color-theta2"></div> θ₂</div>
+                </div>
+            </div>
+
+            <div class="panel">
+                <div class="panel-header">Phase Space (θ vs ω)</div>
+                <div class="panel-content">
+                    <canvas id="phase-canvas"></canvas>
+                </div>
+                <div class="legend">
+                    <div class="legend-item"><div class="legend-color color-theta1"></div> Pendulum 1</div>
+                    <div class="legend-item"><div class="legend-color color-theta2"></div> Pendulum 2</div>
+                </div>
+            </div>
+
+            <div class="panel">
+                <div class="panel-header">Energy vs Time</div>
+                <div class="panel-content">
+                    <canvas id="energy-canvas"></canvas>
+                </div>
+                <div class="legend">
+                    <div class="legend-item"><div class="legend-color color-ke"></div> Kinetic</div>
+                    <div class="legend-item"><div class="legend-color color-pe"></div> Potential</div>
+                    <div class="legend-item"><div class="legend-color color-total"></div> Total</div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <script>
+    (function() {
+        'use strict';
+
+        // ============================================================
+        // Constants
+        // ============================================================
+
+        const DEG_TO_RAD = Math.PI / 180;
+        const RAD_TO_DEG = 180 / Math.PI;
+        const DT = 0.001;  // Integration time step
+        const TRAIL_LENGTH = 500;
+        const GRAPH_HISTORY = 1000;
+
+        // Colors
+        const COLORS = {
+            primary: '#3498db',
+            secondary: '#9b59b6',
+            accent: '#e74c3c',
+            success: '#2ecc71',
+            rod: '#333',
+            pivot: '#666',
+            mass1: '#3498db',
+            mass2: '#9b59b6',
+            trail: 'rgba(155, 89, 182, 0.3)',
+            grid: '#eee'
+        };
+
+        // ============================================================
+        // State
+        // ============================================================
+
+        let params = {
+            m1: 1, m2: 1,
+            L1: 1, L2: 1,
+            g: 9.81,
+            damping: 0,
+            speed: 1
+        };
+
+        let initialState = {
+            theta1: 120 * DEG_TO_RAD,
+            theta2: 120 * DEG_TO_RAD,
+            omega1: 0,
+            omega2: 0
+        };
+
+        let state = { ...initialState };
+        let time = 0;
+        let running = false;
+        let animationId = null;
+
+        // History for graphs
+        let trail = [];
+        let angleHistory = [];
+        let phaseHistory1 = [];
+        let phaseHistory2 = [];
+        let energyHistory = [];
+
+        // ============================================================
+        // DOM Elements
+        // ============================================================
+
+        const startBtn = document.getElementById('start-btn');
+        const resetBtn = document.getElementById('reset-btn');
+
+        const pendulumCanvas = document.getElementById('pendulum-canvas');
+        const angleCanvas = document.getElementById('angle-canvas');
+        const phaseCanvas = document.getElementById('phase-canvas');
+        const energyCanvas = document.getElementById('energy-canvas');
+
+        const pendulumCtx = pendulumCanvas.getContext('2d');
+        const angleCtx = angleCanvas.getContext('2d');
+        const phaseCtx = phaseCanvas.getContext('2d');
+        const energyCtx = energyCanvas.getContext('2d');
+
+        // ============================================================
+        // Physics: Equations of Motion
+        // ============================================================
+
+        function derivatives(s) {
+            const { m1, m2, L1, L2, g, damping } = params;
+            const { theta1, theta2, omega1, omega2 } = s;
+
+            const delta = theta1 - theta2;
+            const sinDelta = Math.sin(delta);
+            const cosDelta = Math.cos(delta);
+
+            const M = m1 + m2;
+
+            // Denominators
+            const den1 = L1 * (M - m2 * cosDelta * cosDelta);
+            const den2 = L2 * (M - m2 * cosDelta * cosDelta);
+
+            // Angular accelerations (Lagrangian mechanics)
+            const alpha1 = (
+                -g * M * Math.sin(theta1)
+                - m2 * g * Math.sin(theta1 - 2 * theta2) / 2
+                - m2 * sinDelta * (omega2 * omega2 * L2 + omega1 * omega1 * L1 * cosDelta)
+            ) / den1;
+
+            const alpha2 = (
+                sinDelta * (
+                    M * (omega1 * omega1 * L1 + g * Math.cos(theta1))
+                    + omega2 * omega2 * L2 * m2 * cosDelta
+                )
+            ) / den2;
+
+            return {
+                dTheta1: omega1,
+                dTheta2: omega2,
+                dOmega1: alpha1 - damping * omega1,
+                dOmega2: alpha2 - damping * omega2
+            };
+        }
+
+        // Runge-Kutta 4th order integration
+        function rk4Step(s, dt) {
+            const k1 = derivatives(s);
+
+            const s2 = {
+                theta1: s.theta1 + k1.dTheta1 * dt / 2,
+                theta2: s.theta2 + k1.dTheta2 * dt / 2,
+                omega1: s.omega1 + k1.dOmega1 * dt / 2,
+                omega2: s.omega2 + k1.dOmega2 * dt / 2
+            };
+            const k2 = derivatives(s2);
+
+            const s3 = {
+                theta1: s.theta1 + k2.dTheta1 * dt / 2,
+                theta2: s.theta2 + k2.dTheta2 * dt / 2,
+                omega1: s.omega1 + k2.dOmega1 * dt / 2,
+                omega2: s.omega2 + k2.dOmega2 * dt / 2
+            };
+            const k3 = derivatives(s3);
+
+            const s4 = {
+                theta1: s.theta1 + k3.dTheta1 * dt,
+                theta2: s.theta2 + k3.dTheta2 * dt,
+                omega1: s.omega1 + k3.dOmega1 * dt,
+                omega2: s.omega2 + k3.dOmega2 * dt
+            };
+            const k4 = derivatives(s4);
+
+            return {
+                theta1: s.theta1 + (k1.dTheta1 + 2*k2.dTheta1 + 2*k3.dTheta1 + k4.dTheta1) * dt / 6,
+                theta2: s.theta2 + (k1.dTheta2 + 2*k2.dTheta2 + 2*k3.dTheta2 + k4.dTheta2) * dt / 6,
+                omega1: s.omega1 + (k1.dOmega1 + 2*k2.dOmega1 + 2*k3.dOmega1 + k4.dOmega1) * dt / 6,
+                omega2: s.omega2 + (k1.dOmega2 + 2*k2.dOmega2 + 2*k3.dOmega2 + k4.dOmega2) * dt / 6
+            };
+        }
+
+        // Calculate energy
+        function calculateEnergy(s) {
+            const { m1, m2, L1, L2, g } = params;
+            const { theta1, theta2, omega1, omega2 } = s;
+
+            // Positions
+            const y1 = -L1 * Math.cos(theta1);
+            const y2 = y1 - L2 * Math.cos(theta2);
+
+            // Velocities
+            const v1x = L1 * omega1 * Math.cos(theta1);
+            const v1y = L1 * omega1 * Math.sin(theta1);
+            const v2x = v1x + L2 * omega2 * Math.cos(theta2);
+            const v2y = v1y + L2 * omega2 * Math.sin(theta2);
+
+            const v1sq = v1x * v1x + v1y * v1y;
+            const v2sq = v2x * v2x + v2y * v2y;
+
+            const KE = 0.5 * m1 * v1sq + 0.5 * m2 * v2sq;
+            const PE = m1 * g * y1 + m2 * g * y2;
+
+            return { KE, PE, total: KE + PE };
+        }
+
+        // ============================================================
+        // Rendering
+        // ============================================================
+
+        function resizeCanvas(canvas) {
+            const rect = canvas.parentElement.getBoundingClientRect();
+            const dpr = window.devicePixelRatio || 1;
+            canvas.width = rect.width * dpr;
+            canvas.height = rect.height * dpr;
+            canvas.getContext('2d').scale(dpr, dpr);
+            return { width: rect.width, height: rect.height };
+        }
+
+        function resizeAllCanvases() {
+            resizeCanvas(pendulumCanvas);
+            resizeCanvas(angleCanvas);
+            resizeCanvas(phaseCanvas);
+            resizeCanvas(energyCanvas);
+            render();
+        }
+
+        function drawPendulum() {
+            const { width, height } = resizeCanvas(pendulumCanvas);
+            const ctx = pendulumCtx;
+
+            ctx.clearRect(0, 0, width, height);
+
+            const { L1, L2, m1, m2 } = params;
+            const { theta1, theta2 } = state;
+
+            // Scale to fit
+            const totalLength = L1 + L2;
+            const scale = Math.min(width, height) * 0.35 / totalLength;
+            const originX = width / 2;
+            const originY = height * 0.35;
+
+            // Calculate positions
+            const x1 = originX + L1 * scale * Math.sin(theta1);
+            const y1 = originY + L1 * scale * Math.cos(theta1);
+            const x2 = x1 + L2 * scale * Math.sin(theta2);
+            const y2 = y1 + L2 * scale * Math.cos(theta2);
+
+            // Update trail
+            trail.push({ x: x2, y: y2 });
+            if (trail.length > TRAIL_LENGTH) trail.shift();
+
+            // Draw trail
+            if (trail.length > 1) {
+                ctx.beginPath();
+                ctx.moveTo(trail[0].x, trail[0].y);
+                for (let i = 1; i < trail.length; i++) {
+                    ctx.lineTo(trail[i].x, trail[i].y);
+                }
+                ctx.strokeStyle = COLORS.trail;
+                ctx.lineWidth = 2;
+                ctx.stroke();
+            }
+
+            // Draw rods
+            ctx.beginPath();
+            ctx.moveTo(originX, originY);
+            ctx.lineTo(x1, y1);
+            ctx.lineTo(x2, y2);
+            ctx.strokeStyle = COLORS.rod;
+            ctx.lineWidth = 3;
+            ctx.stroke();
+
+            // Draw pivot
+            ctx.beginPath();
+            ctx.arc(originX, originY, 6, 0, Math.PI * 2);
+            ctx.fillStyle = COLORS.pivot;
+            ctx.fill();
+
+            // Draw masses (size proportional to mass)
+            const r1 = 8 + m1 * 4;
+            const r2 = 8 + m2 * 4;
+
+            ctx.beginPath();
+            ctx.arc(x1, y1, r1, 0, Math.PI * 2);
+            ctx.fillStyle = COLORS.mass1;
+            ctx.fill();
+            ctx.strokeStyle = 'white';
+            ctx.lineWidth = 2;
+            ctx.stroke();
+
+            ctx.beginPath();
+            ctx.arc(x2, y2, r2, 0, Math.PI * 2);
+            ctx.fillStyle = COLORS.mass2;
+            ctx.fill();
+            ctx.strokeStyle = 'white';
+            ctx.lineWidth = 2;
+            ctx.stroke();
+        }
+
+        function drawAngleGraph() {
+            const { width, height } = resizeCanvas(angleCanvas);
+            const ctx = angleCtx;
+
+            ctx.clearRect(0, 0, width, height);
+
+            const pad = { left: 40, right: 10, top: 10, bottom: 25 };
+            const w = width - pad.left - pad.right;
+            const h = height - pad.top - pad.bottom;
+
+            // Draw grid
+            ctx.strokeStyle = COLORS.grid;
+            ctx.lineWidth = 1;
+
+            // Horizontal grid lines
+            for (let i = 0; i <= 4; i++) {
+                const y = pad.top + (h / 4) * i;
+                ctx.beginPath();
+                ctx.moveTo(pad.left, y);
+                ctx.lineTo(width - pad.right, y);
+                ctx.stroke();
+            }
+
+            // Y-axis labels
+            ctx.fillStyle = COLORS.pivot;
+            ctx.font = '10px sans-serif';
+            ctx.textAlign = 'right';
+            ctx.fillText('180°', pad.left - 5, pad.top + 4);
+            ctx.fillText('0°', pad.left - 5, pad.top + h / 2 + 4);
+            ctx.fillText('-180°', pad.left - 5, pad.top + h + 4);
+
+            if (angleHistory.length < 2) return;
+
+            // Draw theta1
+            ctx.beginPath();
+            for (let i = 0; i < angleHistory.length; i++) {
+                const x = pad.left + (i / GRAPH_HISTORY) * w;
+                const y = pad.top + h / 2 - (angleHistory[i].theta1 * RAD_TO_DEG / 180) * (h / 2);
+                if (i === 0) ctx.moveTo(x, y);
+                else ctx.lineTo(x, y);
+            }
+            ctx.strokeStyle = COLORS.primary;
+            ctx.lineWidth = 1.5;
+            ctx.stroke();
+
+            // Draw theta2
+            ctx.beginPath();
+            for (let i = 0; i < angleHistory.length; i++) {
+                const x = pad.left + (i / GRAPH_HISTORY) * w;
+                const y = pad.top + h / 2 - (angleHistory[i].theta2 * RAD_TO_DEG / 180) * (h / 2);
+                if (i === 0) ctx.moveTo(x, y);
+                else ctx.lineTo(x, y);
+            }
+            ctx.strokeStyle = COLORS.secondary;
+            ctx.lineWidth = 1.5;
+            ctx.stroke();
+        }
+
+        function drawPhaseGraph() {
+            const { width, height } = resizeCanvas(phaseCanvas);
+            const ctx = phaseCtx;
+
+            ctx.clearRect(0, 0, width, height);
+
+            const pad = 30;
+            const w = width - pad * 2;
+            const h = height - pad * 2;
+            const cx = width / 2;
+            const cy = height / 2;
+
+            // Draw axes
+            ctx.strokeStyle = COLORS.grid;
+            ctx.lineWidth = 1;
+            ctx.beginPath();
+            ctx.moveTo(pad, cy);
+            ctx.lineTo(width - pad, cy);
+            ctx.moveTo(cx, pad);
+            ctx.lineTo(cx, height - pad);
+            ctx.stroke();
+
+            // Labels
+            ctx.fillStyle = COLORS.pivot;
+            ctx.font = '10px sans-serif';
+            ctx.textAlign = 'center';
+            ctx.fillText('θ', width - 15, cy + 15);
+            ctx.fillText('ω', cx + 15, 15);
+
+            const maxTheta = Math.PI;
+            const maxOmega = 15;
+
+            // Draw phase trajectory for pendulum 1
+            if (phaseHistory1.length > 1) {
+                ctx.beginPath();
+                for (let i = 0; i < phaseHistory1.length; i++) {
+                    const p = phaseHistory1[i];
+                    const x = cx + (p.theta / maxTheta) * (w / 2);
+                    const y = cy - (p.omega / maxOmega) * (h / 2);
+                    if (i === 0) ctx.moveTo(x, y);
+                    else ctx.lineTo(x, y);
+                }
+                ctx.strokeStyle = COLORS.primary;
+                ctx.lineWidth = 1;
+                ctx.stroke();
+            }
+
+            // Draw phase trajectory for pendulum 2
+            if (phaseHistory2.length > 1) {
+                ctx.beginPath();
+                for (let i = 0; i < phaseHistory2.length; i++) {
+                    const p = phaseHistory2[i];
+                    const x = cx + (p.theta / maxTheta) * (w / 2);
+                    const y = cy - (p.omega / maxOmega) * (h / 2);
+                    if (i === 0) ctx.moveTo(x, y);
+                    else ctx.lineTo(x, y);
+                }
+                ctx.strokeStyle = COLORS.secondary;
+                ctx.lineWidth = 1;
+                ctx.stroke();
+            }
+        }
+
+        function drawEnergyGraph() {
+            const { width, height } = resizeCanvas(energyCanvas);
+            const ctx = energyCtx;
+
+            ctx.clearRect(0, 0, width, height);
+
+            const pad = { left: 45, right: 10, top: 10, bottom: 25 };
+            const w = width - pad.left - pad.right;
+            const h = height - pad.top - pad.bottom;
+
+            if (energyHistory.length < 2) return;
+
+            // Find energy range
+            let minE = Infinity, maxE = -Infinity;
+            for (const e of energyHistory) {
+                minE = Math.min(minE, e.PE, e.KE);
+                maxE = Math.max(maxE, e.total);
+            }
+            const range = maxE - minE || 1;
+            const margin = range * 0.1;
+            minE -= margin;
+            maxE += margin;
+
+            // Draw grid
+            ctx.strokeStyle = COLORS.grid;
+            ctx.lineWidth = 1;
+            for (let i = 0; i <= 4; i++) {
+                const y = pad.top + (h / 4) * i;
+                ctx.beginPath();
+                ctx.moveTo(pad.left, y);
+                ctx.lineTo(width - pad.right, y);
+                ctx.stroke();
+            }
+
+            // Y-axis labels
+            ctx.fillStyle = COLORS.pivot;
+            ctx.font = '10px sans-serif';
+            ctx.textAlign = 'right';
+            ctx.fillText(maxE.toFixed(1) + 'J', pad.left - 5, pad.top + 4);
+            ctx.fillText(minE.toFixed(1) + 'J', pad.left - 5, height - pad.bottom + 4);
+
+            function drawLine(key, color) {
+                ctx.beginPath();
+                for (let i = 0; i < energyHistory.length; i++) {
+                    const x = pad.left + (i / GRAPH_HISTORY) * w;
+                    const y = pad.top + h - ((energyHistory[i][key] - minE) / (maxE - minE)) * h;
+                    if (i === 0) ctx.moveTo(x, y);
+                    else ctx.lineTo(x, y);
+                }
+                ctx.strokeStyle = color;
+                ctx.lineWidth = 1.5;
+                ctx.stroke();
+            }
+
+            drawLine('KE', COLORS.accent);
+            drawLine('PE', COLORS.primary);
+            drawLine('total', COLORS.success);
+        }
+
+        function updateStats() {
+            const energy = calculateEnergy(state);
+
+            document.getElementById('stat-time').textContent = time.toFixed(2) + ' s';
+            document.getElementById('stat-theta1').textContent = (state.theta1 * RAD_TO_DEG).toFixed(1) + '°';
+            document.getElementById('stat-theta2').textContent = (state.theta2 * RAD_TO_DEG).toFixed(1) + '°';
+            document.getElementById('stat-omega1').textContent = state.omega1.toFixed(2) + ' rad/s';
+            document.getElementById('stat-omega2').textContent = state.omega2.toFixed(2) + ' rad/s';
+            document.getElementById('stat-energy').textContent = energy.total.toFixed(2) + ' J';
+        }
+
+        function render() {
+            drawPendulum();
+            drawAngleGraph();
+            drawPhaseGraph();
+            drawEnergyGraph();
+            updateStats();
+        }
+
+        // ============================================================
+        // Simulation Loop
+        // ============================================================
+
+        function step() {
+            const stepsPerFrame = Math.round(16 * params.speed / (DT * 1000));
+
+            for (let i = 0; i < stepsPerFrame; i++) {
+                state = rk4Step(state, DT);
+                time += DT;
+
+                // Normalize angles to [-π, π]
+                state.theta1 = ((state.theta1 + Math.PI) % (2 * Math.PI) + 2 * Math.PI) % (2 * Math.PI) - Math.PI;
+                state.theta2 = ((state.theta2 + Math.PI) % (2 * Math.PI) + 2 * Math.PI) % (2 * Math.PI) - Math.PI;
+            }
+
+            // Update history (once per frame)
+            angleHistory.push({ theta1: state.theta1, theta2: state.theta2 });
+            if (angleHistory.length > GRAPH_HISTORY) angleHistory.shift();
+
+            phaseHistory1.push({ theta: state.theta1, omega: state.omega1 });
+            if (phaseHistory1.length > GRAPH_HISTORY) phaseHistory1.shift();
+
+            phaseHistory2.push({ theta: state.theta2, omega: state.omega2 });
+            if (phaseHistory2.length > GRAPH_HISTORY) phaseHistory2.shift();
+
+            const energy = calculateEnergy(state);
+            energyHistory.push(energy);
+            if (energyHistory.length > GRAPH_HISTORY) energyHistory.shift();
+
+            render();
+
+            if (running) {
+                animationId = requestAnimationFrame(step);
+            }
+        }
+
+        function start() {
+            if (!running) {
+                running = true;
+                startBtn.textContent = 'Pause';
+                step();
+            } else {
+                running = false;
+                startBtn.textContent = 'Start';
+                if (animationId) {
+                    cancelAnimationFrame(animationId);
+                }
+            }
+        }
+
+        function reset() {
+            running = false;
+            startBtn.textContent = 'Start';
+            if (animationId) {
+                cancelAnimationFrame(animationId);
+            }
+
+            state = { ...initialState };
+            time = 0;
+            trail = [];
+            angleHistory = [];
+            phaseHistory1 = [];
+            phaseHistory2 = [];
+            energyHistory = [];
+
+            render();
+        }
+
+        // ============================================================
+        // Controls
+        // ============================================================
+
+        function setupSlider(id, paramKey, displayId, isInitial = false, transform = v => v) {
+            const slider = document.getElementById(id);
+            const display = document.getElementById(displayId);
+
+            slider.addEventListener('input', () => {
+                const value = parseFloat(slider.value);
+                display.textContent = value.toFixed(id === 'damping' ? 3 : 1);
+
+                if (isInitial) {
+                    initialState[paramKey] = transform(value);
+                    if (!running) {
+                        state[paramKey] = initialState[paramKey];
+                        render();
+                    }
+                } else {
+                    params[paramKey] = value;
+                }
+            });
+        }
+
+        setupSlider('m1', 'm1', 'm1-val');
+        setupSlider('m2', 'm2', 'm2-val');
+        setupSlider('L1', 'L1', 'L1-val');
+        setupSlider('L2', 'L2', 'L2-val');
+        setupSlider('g', 'g', 'g-val');
+        setupSlider('damping', 'damping', 'damping-val');
+        setupSlider('speed', 'speed', 'speed-val');
+        setupSlider('theta1', 'theta1', 'theta1-val', true, v => v * DEG_TO_RAD);
+        setupSlider('theta2', 'theta2', 'theta2-val', true, v => v * DEG_TO_RAD);
+
+        startBtn.addEventListener('click', start);
+        resetBtn.addEventListener('click', reset);
+
+        // Preset functions
+        function applyPreset(theta1Deg, theta2Deg) {
+            // Update sliders
+            document.getElementById('theta1').value = theta1Deg;
+            document.getElementById('theta2').value = theta2Deg;
+            document.getElementById('theta1-val').textContent = theta1Deg;
+            document.getElementById('theta2-val').textContent = theta2Deg;
+
+            // Update initial state
+            initialState.theta1 = theta1Deg * DEG_TO_RAD;
+            initialState.theta2 = theta2Deg * DEG_TO_RAD;
+            initialState.omega1 = 0;
+            initialState.omega2 = 0;
+
+            // Reset simulation
+            reset();
+        }
+
+        document.getElementById('preset1-btn').addEventListener('click', () => applyPreset(120, 120));
+        document.getElementById('preset2-btn').addEventListener('click', () => applyPreset(120, 121));
+
+        window.addEventListener('resize', resizeAllCanvases);
+
+        // Initial render
+        resizeAllCanvases();
+
+    })();
+    </script>
+</body>
+</html>
