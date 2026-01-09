@@ -1,0 +1,550 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Catastrophic Risk Analysis - Mortgage Payoff Calculator</title>
+    <link rel="stylesheet" href="simple.min.css">
+    <link rel="stylesheet" href="../app-theme.css">
+    <style>
+        body { background: var(--color-bg-white); display: block; }
+        main { padding: 0 20px 20px; max-width: 1200px; margin: 0 auto; }
+        header.app-header { background: var(--color-bg-white); border-bottom: 1px solid var(--color-border-light); padding: 8px 20px; text-align: left; }
+        header.app-header h1 { font-size: 1.1rem; margin: 0; }
+        header.app-header nav a { background: none; border: none; padding: 0; color: var(--color-primary); }
+        header.app-header nav a:hover { background: none; text-decoration: underline; }
+        .analysis-section {
+            margin: 2rem 0;
+            padding: 1.5rem;
+            background: var(--accent-bg);
+            border: 1px solid var(--border);
+            border-radius: var(--standard-border-radius);
+        }
+        .analysis-section h2 { margin-top: 0; color: var(--accent); }
+        .chart-container {
+            margin: 1rem 0;
+            padding: 1rem;
+            background: white;
+            border-radius: var(--standard-border-radius);
+        }
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+            gap: 1rem;
+            margin: 1rem 0;
+        }
+        .stat-card {
+            background: white;
+            padding: 1rem;
+            border-radius: var(--standard-border-radius);
+            text-align: center;
+        }
+        .stat-card .label { font-size: 0.85rem; color: #666; }
+        .stat-card .value { font-size: 1.4rem; font-weight: bold; margin: 0.5rem 0; }
+        .stat-card .sublabel { font-size: 0.75rem; color: #999; }
+        .positive { color: #28a745; }
+        .negative { color: #dc3545; }
+        .warning { color: #fd7e14; }
+        .note { font-style: italic; color: var(--text-light); font-size: 0.9rem; }
+        table { width: 100%; margin: 1rem 0; }
+        th, td { padding: 0.5rem; text-align: right; }
+        th:first-child, td:first-child { text-align: left; }
+        #loading { text-align: center; padding: 2rem; font-size: 1.2rem; }
+        .form-row { display: flex; gap: 1rem; flex-wrap: wrap; align-items: end; margin-bottom: 1rem; }
+        .form-row label { display: block; margin-bottom: 0.25rem; font-size: 0.9rem; }
+        .form-row input { padding: 0.5rem; border-radius: 4px; border: 1px solid #ccc; }
+        .form-row button { padding: 0.5rem 1.5rem; }
+        .risk-meter {
+            height: 30px;
+            background: linear-gradient(to right, #28a745, #ffc107, #dc3545);
+            border-radius: 15px;
+            position: relative;
+            margin: 1rem 0;
+        }
+        .risk-indicator {
+            position: absolute;
+            top: -5px;
+            width: 4px;
+            height: 40px;
+            background: black;
+            border-radius: 2px;
+        }
+        .scenario-box {
+            background: white;
+            padding: 1rem;
+            border-radius: var(--standard-border-radius);
+            margin: 1rem 0;
+            border-left: 4px solid #ccc;
+        }
+        .scenario-box.safe { border-left-color: #28a745; }
+        .scenario-box.risky { border-left-color: #dc3545; }
+    </style>
+</head>
+<body>
+    <header class="app-header">
+        <div class="header-left">
+            <h1>Catastrophic Risk Analysis</h1>
+            <span class="subtitle">What if your investment crashes?</span>
+        </div>
+        <nav>
+            <a href="https://marhar.github.io/">Home</a>
+            <a href="./">Calculator</a>
+            <a href="risk-analysis.html">Risk Analysis</a>
+        </nav>
+    </header>
+
+    <main>
+        <div class="analysis-section">
+            <h2>The Real Risk Question</h2>
+            <div class="scenario-box safe">
+                <strong>Payoff Strategy:</strong> You own your home outright.
+                No mortgage payment needed. Even if the market crashes 90%,
+                <em>you cannot lose your property</em> due to missed payments.
+            </div>
+            <div class="scenario-box risky">
+                <strong>Invest Strategy:</strong> You still owe monthly mortgage payments.
+                If your investment crashes and you have no other income, you could
+                <em>lose your property</em> to foreclosure.
+            </div>
+        </div>
+
+        <div class="analysis-section">
+            <h2>Parameters</h2>
+            <div class="form-row">
+                <div>
+                    <label for="balance">Mortgage Balance ($)</label>
+                    <input type="number" id="balance" value="300000" min="10000" step="10000">
+                </div>
+                <div>
+                    <label for="rate">Mortgage Rate (%)</label>
+                    <input type="number" id="rate" value="5.0" min="0" max="15" step="0.5">
+                </div>
+                <div>
+                    <label for="term">Term (Years)</label>
+                    <input type="number" id="term" value="30" min="1" max="30">
+                </div>
+                <div>
+                    <button onclick="runAnalysis()">Analyze Risk</button>
+                </div>
+            </div>
+        </div>
+
+        <div id="loading" style="display: none;">Analyzing catastrophic risk scenarios...</div>
+
+        <div id="results" style="display: none;">
+            <!-- Key Risk Metrics -->
+            <div class="analysis-section">
+                <h2>Key Risk Metrics</h2>
+                <p class="note">How often did the invest strategy put you at risk during the mortgage term?</p>
+                <div class="stats-grid">
+                    <div class="stat-card">
+                        <div class="label">Periods Analyzed</div>
+                        <div class="value" id="totalPeriods">-</div>
+                        <div class="sublabel">starting years</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="label">Ever Underwater</div>
+                        <div class="value" id="everUnderwater">-</div>
+                        <div class="sublabel">investment < mortgage at any point</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="label">Worst Max Drawdown</div>
+                        <div class="value negative" id="worstDrawdown">-</div>
+                        <div class="sublabel">largest peak-to-trough decline</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="label">Average Max Drawdown</div>
+                        <div class="value warning" id="avgDrawdown">-</div>
+                        <div class="sublabel">typical worst decline</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Underwater Analysis -->
+            <div class="analysis-section">
+                <h2>Underwater Analysis</h2>
+                <p class="note">
+                    "Underwater" means your investment is worth less than your remaining mortgage.
+                    If you had to sell, you couldn't pay off the loan.
+                </p>
+                <div class="stats-grid">
+                    <div class="stat-card">
+                        <div class="label">% of Periods Ever Underwater</div>
+                        <div class="value" id="pctUnderwater">-</div>
+                        <div class="sublabel" id="underwaterCount">-</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="label">Avg Time Underwater</div>
+                        <div class="value" id="avgUnderwaterMonths">-</div>
+                        <div class="sublabel">when it happens</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="label">Max Time Underwater</div>
+                        <div class="value negative" id="maxUnderwaterMonths">-</div>
+                        <div class="sublabel">worst case</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="label">Deepest Underwater</div>
+                        <div class="value negative" id="deepestUnderwater">-</div>
+                        <div class="sublabel">investment vs mortgage gap</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Drawdown Distribution -->
+            <div class="analysis-section">
+                <h2>Maximum Drawdown Distribution</h2>
+                <p class="note">
+                    Maximum drawdown = largest peak-to-trough decline during the investment period.
+                    This shows how much your investment could fall from its highest point.
+                </p>
+                <div class="chart-container">
+                    <div id="drawdownChart" style="height: 300px;"></div>
+                </div>
+                <div class="stats-grid">
+                    <div class="stat-card">
+                        <div class="label">Drawdown > 20%</div>
+                        <div class="value" id="dd20">-</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="label">Drawdown > 40%</div>
+                        <div class="value warning" id="dd40">-</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="label">Drawdown > 50%</div>
+                        <div class="value negative" id="dd50">-</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Payment Coverage -->
+            <div class="analysis-section">
+                <h2>Emergency Payment Coverage</h2>
+                <p class="note">
+                    If you lost your income, how many months of mortgage payments could your
+                    investment cover at its lowest point during the term?
+                </p>
+                <div class="stats-grid">
+                    <div class="stat-card">
+                        <div class="label">Minimum Coverage (Worst Period)</div>
+                        <div class="value" id="minCoverage">-</div>
+                        <div class="sublabel" id="minCoverageYear">-</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="label">Avg Minimum Coverage</div>
+                        <div class="value" id="avgMinCoverage">-</div>
+                        <div class="sublabel">typical worst month</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="label">% With < 12 Months Coverage</div>
+                        <div class="value" id="lowCoverage">-</div>
+                        <div class="sublabel">at lowest point</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Worst Case Scenarios -->
+            <div class="analysis-section">
+                <h2>Worst Historical Starting Years</h2>
+                <p class="note">Starting years with the highest risk exposure</p>
+                <table id="worstYearsTable">
+                    <thead>
+                        <tr>
+                            <th>Start Year</th>
+                            <th>Max Drawdown</th>
+                            <th>Months Underwater</th>
+                            <th>Min Coverage</th>
+                            <th>Final Outcome</th>
+                        </tr>
+                    </thead>
+                    <tbody></tbody>
+                </table>
+            </div>
+
+            <!-- Risk Summary -->
+            <div class="analysis-section">
+                <h2>Risk Summary</h2>
+                <div id="riskSummary"></div>
+            </div>
+        </div>
+    </main>
+
+    <script src="https://cdn.plot.ly/plotly-2.27.0.min.js"></script>
+    <script src="sp500_data.js"></script>
+    <script src="mortgage.js"></script>
+    <script src="app.js"></script>
+    <script>
+        function formatCurrency(val) {
+            return new Intl.NumberFormat('en-US', {
+                style: 'currency',
+                currency: 'USD',
+                minimumFractionDigits: 0,
+                maximumFractionDigits: 0
+            }).format(val);
+        }
+
+        function runAnalysis() {
+            const balance = parseFloat(document.getElementById('balance').value);
+            const rate = parseFloat(document.getElementById('rate').value) / 100;
+            const years = parseFloat(document.getElementById('term').value);
+
+            document.getElementById('loading').style.display = 'block';
+            document.getElementById('results').style.display = 'none';
+
+            setTimeout(() => {
+                const results = analyzeAllPeriods(balance, rate, years);
+                displayResults(results, balance, rate, years);
+                document.getElementById('loading').style.display = 'none';
+                document.getElementById('results').style.display = 'block';
+            }, 50);
+        }
+
+        function analyzeAllPeriods(balance, rate, years) {
+            const dataRange = getDataRange();
+            const firstYear = parseInt(dataRange.firstDate.split('-')[0]);
+            const lastYear = parseInt(dataRange.lastDate.split('-')[0]);
+            const lastValidStartYear = lastYear - Math.ceil(years);
+            const monthlyPayment = calculateMonthlyPayment(balance, rate, years);
+
+            const results = [];
+
+            for (let startYear = firstYear; startYear <= lastValidStartYear; startYear++) {
+                try {
+                    const analysis = analyzeInvestRisk(balance, rate, years, `${startYear}-01-01`);
+                    if (analysis) {
+                        analysis.startYear = startYear;
+                        analysis.monthlyPayment = monthlyPayment;
+                        results.push(analysis);
+                    }
+                } catch (e) {}
+            }
+
+            return results;
+        }
+
+        function analyzeInvestRisk(balance, rate, years, startDate) {
+            const totalMonths = years * 12;
+            const monthlyPayment = calculateMonthlyPayment(balance, rate, years);
+
+            // Get monthly returns
+            const dataRange = getDataRange();
+            const startParts = startDate.split('-').map(Number);
+            let year = startParts[0];
+            let month = startParts[1];
+
+            const returns = [];
+            for (let i = 0; i < totalMonths; i++) {
+                const yearMonth = `${year}-${String(month).padStart(2, '0')}`;
+                if (yearMonth > dataRange.lastDate) return null;
+
+                const ret = SP500_MONTHLY_RETURNS[yearMonth];
+                if (ret === undefined) return null;
+                returns.push(ret);
+
+                month++;
+                if (month > 12) { month = 1; year++; }
+            }
+
+            // Calculate mortgage balance over time
+            const mortgageBalances = [];
+            let mortgageBalance = balance;
+            const monthlyRate = rate / 12;
+
+            for (let i = 0; i < totalMonths; i++) {
+                const interest = mortgageBalance * monthlyRate;
+                const principal = monthlyPayment - interest;
+                mortgageBalance = Math.max(0, mortgageBalance - principal);
+                mortgageBalances.push(mortgageBalance);
+            }
+
+            // Calculate investment value over time
+            const investValues = [];
+            let investValue = balance;
+            let peak = balance;
+            let maxDrawdown = 0;
+            let underwaterMonths = 0;
+            let deepestUnderwater = 0;
+            let minCoverage = Infinity;
+
+            for (let i = 0; i < totalMonths; i++) {
+                investValue *= (1 + returns[i]);
+                investValues.push(investValue);
+
+                // Track peak and drawdown
+                if (investValue > peak) peak = investValue;
+                const drawdown = (peak - investValue) / peak;
+                if (drawdown > maxDrawdown) maxDrawdown = drawdown;
+
+                // Track underwater status
+                if (investValue < mortgageBalances[i]) {
+                    underwaterMonths++;
+                    const gap = mortgageBalances[i] - investValue;
+                    if (gap > deepestUnderwater) deepestUnderwater = gap;
+                }
+
+                // Track payment coverage
+                const coverage = investValue / monthlyPayment;
+                if (coverage < minCoverage) minCoverage = coverage;
+            }
+
+            return {
+                maxDrawdown,
+                underwaterMonths,
+                deepestUnderwater,
+                minCoverage,
+                finalInvestValue: investValue,
+                finalMortgage: mortgageBalances[totalMonths - 1],
+                investValues,
+                mortgageBalances,
+                winner: investValue > 0 ? 'Invest' : 'Payoff'
+            };
+        }
+
+        function displayResults(results, balance, rate, years) {
+            const n = results.length;
+            if (n === 0) return;
+
+            const monthlyPayment = calculateMonthlyPayment(balance, rate, years);
+
+            // Basic stats
+            document.getElementById('totalPeriods').textContent = n;
+
+            // Underwater analysis
+            const underwaterPeriods = results.filter(r => r.underwaterMonths > 0);
+            const pctUnderwater = (underwaterPeriods.length / n) * 100;
+            document.getElementById('everUnderwater').textContent = pctUnderwater.toFixed(1) + '%';
+            document.getElementById('everUnderwater').className = 'value ' + (pctUnderwater > 50 ? 'negative' : pctUnderwater > 25 ? 'warning' : 'positive');
+            document.getElementById('pctUnderwater').textContent = pctUnderwater.toFixed(1) + '%';
+            document.getElementById('pctUnderwater').className = 'value ' + (pctUnderwater > 50 ? 'negative' : pctUnderwater > 25 ? 'warning' : 'positive');
+            document.getElementById('underwaterCount').textContent = `${underwaterPeriods.length} of ${n} periods`;
+
+            if (underwaterPeriods.length > 0) {
+                const avgUW = underwaterPeriods.reduce((s, r) => s + r.underwaterMonths, 0) / underwaterPeriods.length;
+                const maxUW = Math.max(...underwaterPeriods.map(r => r.underwaterMonths));
+                const deepest = Math.max(...underwaterPeriods.map(r => r.deepestUnderwater));
+
+                document.getElementById('avgUnderwaterMonths').textContent = avgUW.toFixed(0) + ' months';
+                document.getElementById('maxUnderwaterMonths').textContent = maxUW + ' months';
+                document.getElementById('deepestUnderwater').textContent = formatCurrency(deepest);
+            } else {
+                document.getElementById('avgUnderwaterMonths').textContent = 'N/A';
+                document.getElementById('maxUnderwaterMonths').textContent = 'N/A';
+                document.getElementById('deepestUnderwater').textContent = 'N/A';
+            }
+
+            // Drawdown stats
+            const drawdowns = results.map(r => r.maxDrawdown * 100);
+            const worstDD = Math.max(...drawdowns);
+            const avgDD = drawdowns.reduce((s, v) => s + v, 0) / n;
+
+            document.getElementById('worstDrawdown').textContent = worstDD.toFixed(1) + '%';
+            document.getElementById('avgDrawdown').textContent = avgDD.toFixed(1) + '%';
+
+            const dd20 = results.filter(r => r.maxDrawdown > 0.2).length;
+            const dd40 = results.filter(r => r.maxDrawdown > 0.4).length;
+            const dd50 = results.filter(r => r.maxDrawdown > 0.5).length;
+
+            document.getElementById('dd20').textContent = ((dd20/n)*100).toFixed(0) + '%';
+            document.getElementById('dd40').textContent = ((dd40/n)*100).toFixed(0) + '%';
+            document.getElementById('dd50').textContent = ((dd50/n)*100).toFixed(0) + '%';
+
+            // Coverage stats
+            const minCoverages = results.map(r => r.minCoverage);
+            const worstCoverage = Math.min(...minCoverages);
+            const avgMinCov = minCoverages.reduce((s, v) => s + v, 0) / n;
+            const lowCov = results.filter(r => r.minCoverage < 12).length;
+
+            const worstCovYear = results.find(r => r.minCoverage === worstCoverage).startYear;
+
+            document.getElementById('minCoverage').textContent = worstCoverage.toFixed(0) + ' months';
+            document.getElementById('minCoverageYear').textContent = `Starting ${worstCovYear}`;
+            document.getElementById('avgMinCoverage').textContent = avgMinCov.toFixed(0) + ' months';
+            document.getElementById('lowCoverage').textContent = ((lowCov/n)*100).toFixed(0) + '%';
+
+            // Drawdown chart
+            renderDrawdownChart(drawdowns);
+
+            // Worst years table
+            renderWorstYearsTable(results, monthlyPayment);
+
+            // Risk summary
+            generateRiskSummary(results, pctUnderwater, avgDD, worstDD, rate);
+        }
+
+        function renderDrawdownChart(drawdowns) {
+            const trace = {
+                x: drawdowns,
+                type: 'histogram',
+                marker: {
+                    color: drawdowns.map(d => d > 50 ? '#dc3545' : d > 30 ? '#fd7e14' : '#28a745')
+                },
+                xbins: { size: 5 }
+            };
+
+            const layout = {
+                xaxis: { title: 'Maximum Drawdown (%)', ticksuffix: '%' },
+                yaxis: { title: 'Number of Periods' },
+                shapes: [
+                    { type: 'line', x0: 50, x1: 50, y0: 0, y1: 1, yref: 'paper',
+                      line: { color: 'red', width: 2, dash: 'dash' } }
+                ],
+                annotations: [
+                    { x: 50, y: 1, yref: 'paper', text: '50% crash', showarrow: false,
+                      font: { color: 'red' }, yanchor: 'bottom' }
+                ]
+            };
+
+            Plotly.newPlot('drawdownChart', [trace], layout, { responsive: true });
+        }
+
+        function renderWorstYearsTable(results, monthlyPayment) {
+            // Sort by max drawdown
+            const sorted = [...results].sort((a, b) => b.maxDrawdown - a.maxDrawdown).slice(0, 10);
+
+            const tbody = document.querySelector('#worstYearsTable tbody');
+            tbody.innerHTML = sorted.map(r => {
+                const outcome = r.finalInvestValue - r.finalMortgage;
+                const outcomeClass = outcome > 0 ? 'positive' : 'negative';
+                return `
+                    <tr>
+                        <td>${r.startYear}</td>
+                        <td class="negative">${(r.maxDrawdown * 100).toFixed(1)}%</td>
+                        <td>${r.underwaterMonths > 0 ? r.underwaterMonths + ' months' : '-'}</td>
+                        <td>${r.minCoverage.toFixed(0)} months</td>
+                        <td class="${outcomeClass}">${outcome > 0 ? 'Invest wins' : 'Payoff wins'} by ${formatCurrency(Math.abs(outcome))}</td>
+                    </tr>
+                `;
+            }).join('');
+        }
+
+        function generateRiskSummary(results, pctUnderwater, avgDD, worstDD, rate) {
+            let html = '<ul>';
+
+            // Underwater risk
+            if (pctUnderwater > 50) {
+                html += `<li class="negative"><strong>High underwater risk:</strong> In ${pctUnderwater.toFixed(0)}% of historical periods, your investment dropped below your mortgage balance at some point. You would have been "trapped" - unable to sell and pay off the loan.</li>`;
+            } else if (pctUnderwater > 25) {
+                html += `<li class="warning"><strong>Moderate underwater risk:</strong> In ${pctUnderwater.toFixed(0)}% of historical periods, you went underwater at some point.</li>`;
+            } else {
+                html += `<li class="positive"><strong>Low underwater risk:</strong> Only ${pctUnderwater.toFixed(0)}% of periods ever went underwater.</li>`;
+            }
+
+            // Drawdown risk
+            if (worstDD > 50) {
+                html += `<li class="negative"><strong>Crash exposure:</strong> The worst historical drawdown was ${worstDD.toFixed(0)}%. If this happened and you lost your income, you'd have far less buffer than expected.</li>`;
+            }
+
+            html += `<li><strong>Average worst decline:</strong> Across all periods, the investment typically fell ${avgDD.toFixed(0)}% from its peak at some point during the term.</li>`;
+
+            // The key insight
+            html += `<li><strong>The fundamental trade-off:</strong> With the payoff strategy at ${(rate*100).toFixed(1)}% rate, you get a guaranteed ${(rate*100).toFixed(1)}% "return" (saved interest) and <em>zero risk of losing your home</em>. With the invest strategy, you might do better on average, but you carry real foreclosure risk if you lose your income during a market downturn.</li>`;
+
+            html += '</ul>';
+            document.getElementById('riskSummary').innerHTML = html;
+        }
+
+        // Auto-run on load
+        document.addEventListener('DOMContentLoaded', runAnalysis);
+    </script>
+</body>
+</html>
