@@ -268,9 +268,10 @@
         }
 
         .heatmap {
-            display: flex;
-            flex-wrap: wrap;
+            display: grid;
+            grid-template-columns: repeat(10, auto);
             gap: 3px;
+            justify-content: start;
         }
 
         .heatmap-cell {
