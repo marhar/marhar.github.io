@@ -93,6 +93,16 @@
             opacity: 0.9;
         }
 
+        /* Model Description */
+        .model-description {
+            background: var(--color-bg);
+            padding: 12px 16px;
+            border-radius: 4px;
+            margin-bottom: 20px;
+            font-size: 0.875rem;
+            color: var(--color-text-muted);
+        }
+
         /* Tabs */
         .tabs {
             display: flex;
@@ -348,7 +358,18 @@
                 <label for="startYear">Start Year</label>
                 <select id="startYear"></select>
             </div>
+            <div class="input-group">
+                <label for="model">Income Model</label>
+                <select id="model">
+                    <option value="drawdown">Drawdown</option>
+                    <option value="separate">Separate Income</option>
+                </select>
+            </div>
             <button id="calculate">Calculate</button>
+        </div>
+
+        <div class="model-description" id="model-description">
+            <strong>Drawdown:</strong> Mortgage payments come FROM the investment. Risk of foreclosure if investment depletes.
         </div>
 
         <div class="tabs">

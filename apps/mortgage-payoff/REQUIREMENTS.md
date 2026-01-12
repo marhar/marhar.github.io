@@ -4,31 +4,52 @@
 
 Given a lump sum equal to my mortgage balance, should I pay off the mortgage or invest in the S&P 500?
 
-## The Two Scenarios
+## Income Models
 
-### Scenario A: Invest the Lump Sum
+The calculator supports two different income models. The user can select which model to use.
 
-- Invest the entire lump sum in S&P 500
-- Each month, withdraw the mortgage payment amount from the investment
+### Model 1: Drawdown
+
+You have the lump sum and nothing else. No separate income source.
+
+**Invest scenario:**
+- Put lump sum in S&P 500
+- Withdraw mortgage payment from investment each month
 - Investment grows (or shrinks) based on market returns minus withdrawals
-- At end of mortgage term (if successful): remaining investment + house is paid off
-- **Risk**: If investment hits zero, cannot make payment → foreclosure
+- **Risk**: If investment hits zero → cannot pay mortgage → foreclosure
 
-### Scenario B: Pay Off the Mortgage
-
+**Payoff scenario:**
 - Use lump sum to pay off mortgage immediately
-- House is owned free and clear - no monthly payment required
-- Each month, invest what would have been the mortgage payment into S&P 500
-- At end of original mortgage term: investment has grown from monthly contributions
-- **Risk**: None for property. Investment may lose value but you still own the house.
+- House is owned free and clear
+- Invest what would have been the mortgage payment each month (freed cash flow)
+- **Risk**: None for property
+
+**Characteristics:**
+- Invest faces sequence-of-returns risk (bad early returns are devastating)
+- Historical result: Payoff wins ~100% of scenarios, Invest fails ~43%
+
+### Model 2: Separate Income
+
+You have the lump sum AND regular income equal to the mortgage payment.
+
+**Invest scenario:**
+- Put lump sum in S&P 500 (grows untouched)
+- Pay mortgage from regular income
+- At end of term: investment has compounded for full period
+
+**Payoff scenario:**
+- Use lump sum to pay off mortgage immediately
+- Invest regular income each month (dollar-cost averaging)
+- At end of term: investment has grown from monthly contributions
+
+**Characteristics:**
+- Neither scenario can go bankrupt
+- Classic "lump sum vs DCA" comparison
+- Lump sum typically wins ~2/3 of the time historically
 
 ## Key Constraint: No Double-Counting
 
-In both scenarios, the same monthly cash flow is available. The difference is:
-- **Scenario A**: Monthly payment goes to mortgage; lump sum grows in market
-- **Scenario B**: Monthly payment goes to investment; no mortgage
-
-This ensures a fair comparison. We are not assuming we can invest the full sum AND have separate money for payments.
+In both models, the same total money is in play. We never assume you can invest the full lump sum AND have separate money for payments without accounting for it.
 
 ## Inputs
 
@@ -39,24 +60,19 @@ This ensures a fair comparison. We are not assuming we can invest the full sum A
 
 ## Risk Model
 
-### Scenario A Risk: Foreclosure
+Risk depends on which income model is selected:
 
-In Scenario A (Invest), mortgage payments are withdrawn from the investment each month. If the investment value reaches zero before the mortgage is paid off:
+### Model 1 (Drawdown) Risks
 
-- **Outcome**: Cannot make mortgage payment → foreclosure → lose the property
-- **Mitigation**: Must find another source of monthly income to continue payments
+- **Invest**: Foreclosure risk if investment depletes before mortgage is paid off
+- **Payoff**: No property risk (house owned outright)
+- Creates asymmetric comparison
 
-This is the key risk of Scenario A. A market crash early in the term can deplete the investment before it recovers.
+### Model 2 (Separate Income) Risks
 
-### Scenario B Risk: None (for property)
-
-In Scenario B (Payoff), the property is owned free and clear immediately. There is no foreclosure risk. The investment may go to zero, but you still own your home.
-
-### Risk Asymmetry
-
-This creates an asymmetric comparison:
-- Scenario A may yield higher returns, but carries foreclosure risk
-- Scenario B has guaranteed housing security, but potentially lower returns
+- **Invest**: No foreclosure risk (mortgage paid from income)
+- **Payoff**: No property risk (house owned outright)
+- Symmetric comparison - purely about returns
 
 ## Views
 

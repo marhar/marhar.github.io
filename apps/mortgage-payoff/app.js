@@ -142,17 +142,63 @@ function runPayoffScenario(balance, annualRate, years, startYear, startMonth = 1
     };
 }
 
+// ============================================================================
+// MODEL 2: SEPARATE INCOME (Lump Sum vs DCA)
+// ============================================================================
+
+/**
+ * Model 2 Invest: Lump sum grows untouched (no withdrawals)
+ */
+function runInvestScenarioModel2(balance, annualRate, years, startYear, startMonth = 1) {
+    const numMonths = years * 12;
+    const returns = getMonthlyReturns(startYear, startMonth, numMonths);
+
+    if (!returns) {
+        return { error: 'Insufficient historical data for this period' };
+    }
+
+    let investment = balance;
+    const history = [{ month: 0, value: investment }];
+
+    for (let month = 1; month <= numMonths; month++) {
+        // Apply market return (no withdrawals in Model 2)
+        investment *= (1 + returns[month - 1]);
+        history.push({ month, value: investment });
+    }
+
+    return {
+        finalValue: investment,
+        failed: false,
+        failureMonth: null,
+        history,
+        monthlyPayment: calculateMonthlyPayment(balance, annualRate, years)
+    };
+}
+
+/**
+ * Model 2 Payoff: Same as Model 1 - DCA monthly contributions
+ * (Reuses runPayoffScenario since it's identical)
+ */
+
 /**
  * Compare both scenarios for a single start year
  * @param {number} balance - Mortgage balance
  * @param {number} annualRate - Mortgage interest rate
  * @param {number} years - Mortgage term
  * @param {number} startYear - Year to start
+ * @param {string} model - 'drawdown' or 'separate'
  * @returns {object} Comparison results
  */
-function compareScenarios(balance, annualRate, years, startYear) {
-    const invest = runInvestScenario(balance, annualRate, years, startYear);
-    const payoff = runPayoffScenario(balance, annualRate, years, startYear);
+function compareScenarios(balance, annualRate, years, startYear, model = 'drawdown') {
+    let invest, payoff;
+
+    if (model === 'separate') {
+        invest = runInvestScenarioModel2(balance, annualRate, years, startYear);
+        payoff = runPayoffScenario(balance, annualRate, years, startYear);
+    } else {
+        invest = runInvestScenario(balance, annualRate, years, startYear);
+        payoff = runPayoffScenario(balance, annualRate, years, startYear);
+    }
 
     if (invest.error || payoff.error) {
         return { error: invest.error || payoff.error };
@@ -180,9 +226,10 @@ function compareScenarios(balance, annualRate, years, startYear) {
  * @param {number} balance - Mortgage balance
  * @param {number} annualRate - Mortgage interest rate
  * @param {number} years - Mortgage term
+ * @param {string} model - 'drawdown' or 'separate'
  * @returns {object} Historical analysis results
  */
-function runHistoricalAnalysis(balance, annualRate, years) {
+function runHistoricalAnalysis(balance, annualRate, years, model = 'drawdown') {
     const results = [];
 
     // Get the range of available years
@@ -201,7 +248,7 @@ function runHistoricalAnalysis(balance, annualRate, years) {
     let failures = 0;
 
     for (let year = firstYear; year <= latestStartYear; year++) {
-        const result = compareScenarios(balance, annualRate, years, year);
+        const result = compareScenarios(balance, annualRate, years, year, model);
 
         if (result.error) continue;
 
@@ -318,6 +365,23 @@ function setupCalculateButton() {
     document.getElementById('term').addEventListener('change', () => {
         populateYearDropdown();
     });
+
+    // Update model description when model changes
+    document.getElementById('model').addEventListener('change', updateModelDescription);
+}
+
+/**
+ * Update the model description text
+ */
+function updateModelDescription() {
+    const model = document.getElementById('model').value;
+    const descEl = document.getElementById('model-description');
+
+    if (model === 'separate') {
+        descEl.innerHTML = '<strong>Separate Income:</strong> Lump sum grows untouched in market. Mortgage paid from regular income. Classic lump sum vs DCA comparison.';
+    } else {
+        descEl.innerHTML = '<strong>Drawdown:</strong> Mortgage payments come FROM the investment. Risk of foreclosure if investment depletes.';
+    }
 }
 
 /**
@@ -328,16 +392,17 @@ function calculate() {
     const rate = parseFloat(document.getElementById('rate').value) / 100;
     const years = parseInt(document.getElementById('term').value);
     const startYear = parseInt(document.getElementById('startYear').value);
+    const model = document.getElementById('model').value;
 
     // Run single-year comparison
-    const comparison = compareScenarios(balance, rate, years, startYear);
+    const comparison = compareScenarios(balance, rate, years, startYear, model);
     if (!comparison.error) {
         displayComparisonResults(comparison, startYear, years);
         renderComparisonChart(comparison, years, startYear);
     }
 
     // Run historical analysis
-    const historical = runHistoricalAnalysis(balance, rate, years);
+    const historical = runHistoricalAnalysis(balance, rate, years, model);
     displayHistoricalResults(historical);
 }
 
