@@ -397,7 +397,6 @@ function renderComparisonChart(comparison, years, startYear) {
     // Prepare data - sample yearly for cleaner chart
     const investData = [];
     const payoffData = [];
-    const diffData = [];
     const labels = [];
 
     for (let year = 0; year <= years; year++) {
@@ -408,7 +407,6 @@ function renderComparisonChart(comparison, years, startYear) {
         labels.push(startYear + year);
         investData.push(investVal);
         payoffData.push(payoffVal);
-        diffData.push(investVal - payoffVal);
     }
 
     comparisonChart = new Chart(ctx, {
@@ -433,16 +431,6 @@ function renderComparisonChart(comparison, years, startYear) {
                     fill: false,
                     tension: 0.1,
                     pointRadius: 2
-                },
-                {
-                    label: 'Difference',
-                    data: diffData,
-                    borderColor: '#009988',
-                    borderWidth: 2,
-                    fill: false,
-                    tension: 0.1,
-                    pointRadius: 2,
-                    borderDash: [5, 5]
                 }
             ]
         },
