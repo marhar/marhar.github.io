@@ -1,35 +1,48 @@
-const vm = require('vm');
-const fs = require('fs');
+#!/usr/bin/env node
+// Test runner for mortgage-payoff calculator
 
-// Create a shared context with browser-like globals
-const context = vm.createContext({
+const fs = require('fs');
+const path = require('path');
+const vm = require('vm');
+
+// Read and execute files in order
+const files = [
+    'sp500_data.js',
+    'app.js',
+    'tests.js'
+];
+
+const context = {
     console,
+    module: { exports: {} },
     Math,
     Object,
     Array,
-    Number,
     String,
-    Error,
-    Intl,
-    document: {
-        getElementById: () => ({ addEventListener: () => {}, value: '', innerHTML: '', classList: { add: () => {}, remove: () => {} }, style: {} }),
-        querySelector: () => null,
-        addEventListener: () => {}
-    },
-    window: {},
-    Chart: function() { this.destroy = () => {}; }
+    Number,
+    parseFloat,
+    parseInt,
+    document: null,  // Will cause errors if UI code runs
+    Chart: null,
+    global: {}  // For tests to attach to
+};
+
+vm.createContext(context);
+
+files.forEach(file => {
+    const filePath = path.join(__dirname, file);
+    const code = fs.readFileSync(filePath, 'utf8');
+    try {
+        vm.runInContext(code, context);
+    } catch (e) {
+        // Ignore errors from UI code that needs document
+        if (!e.message.includes('document') && !e.message.includes('addEventListener')) {
+            throw e;
+        }
+    }
 });
 
-// Load files in order
-const sp500Data = fs.readFileSync('sp500_data.js', 'utf8');
-const mortgageJs = fs.readFileSync('mortgage.js', 'utf8');
-const appJs = fs.readFileSync('app.js', 'utf8');
-const testsJs = fs.readFileSync('tests.js', 'utf8');
-
-vm.runInContext(sp500Data, context);
-vm.runInContext(mortgageJs, context);
-vm.runInContext(appJs, context);
-vm.runInContext(testsJs, context);
-
 // Run tests
-vm.runInContext('TestSuite.runAll()', context);
+const testsObj = context.global.tests || context.tests;
+const success = testsObj.runAll();
+process.exit(success ? 0 : 1);

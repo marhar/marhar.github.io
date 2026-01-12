@@ -1,75 +1,48 @@
-/**
- * Mortgage Payoff vs Invest Calculator
- * Main application logic
- */
+// Mortgage Payoff Calculator v2
+// Compares: Invest lump sum (drawdown) vs Pay off mortgage (contribute monthly)
+
+// ============================================================================
+// CALCULATION FUNCTIONS
+// ============================================================================
 
 /**
- * Get the data range from S&P 500 data
+ * Calculate monthly mortgage payment
+ * @param {number} balance - Loan amount
+ * @param {number} annualRate - Annual interest rate (e.g., 0.06 for 6%)
+ * @param {number} years - Loan term in years
+ * @returns {number} Monthly payment
  */
-function getDataRange() {
-    const dates = Object.keys(SP500_MONTHLY_RETURNS).sort();
-    return {
-        firstDate: dates[0],
-        lastDate: dates[dates.length - 1]
-    };
-}
+function calculateMonthlyPayment(balance, annualRate, years) {
+    const monthlyRate = annualRate / 12;
+    const numPayments = years * 12;
 
-/**
- * Get the latest available date in S&P 500 data
- */
-function getLatestDataDate() {
-    return getDataRange().lastDate;
-}
-
-/**
- * Display data freshness indicator
- */
-function displayDataFreshness() {
-    const dataRange = getDataRange();
-    const freshnessEl = document.getElementById('dataFreshness');
-    if (freshnessEl) {
-        freshnessEl.textContent = `S&P 500 data: ${dataRange.firstDate} to ${dataRange.lastDate}`;
+    if (monthlyRate === 0) {
+        return balance / numPayments;
     }
+
+    return balance * (monthlyRate * Math.pow(1 + monthlyRate, numPayments)) /
+           (Math.pow(1 + monthlyRate, numPayments) - 1);
 }
 
 /**
- * Extract monthly returns for a given date range
- * Truncates to available data if requested period extends beyond it
+ * Get monthly S&P 500 returns for a period starting at a given year/month
+ * @param {number} startYear - Starting year
+ * @param {number} startMonth - Starting month (1-12)
+ * @param {number} numMonths - Number of months needed
+ * @returns {number[]|null} Array of monthly returns, or null if insufficient data
  */
-function getMonthlyReturns(startDate, numMonths) {
+function getMonthlyReturns(startYear, startMonth, numMonths) {
     const returns = [];
-    const dates = [];
-    const latestDataDate = getLatestDataDate();
-
-    // Parse dates as local time by splitting the string (avoids timezone issues)
-    const startParts = startDate.split('-').map(Number);
-    let year = startParts[0];
-    let month = startParts[1]; // 1-indexed
-
-    let monthsProcessed = 0;
-    let truncated = false;
+    let year = startYear;
+    let month = startMonth;
 
     for (let i = 0; i < numMonths; i++) {
-        const yearMonth = `${year}-${String(month).padStart(2, '0')}`;
-
-        // Stop if we've gone beyond available data
-        if (yearMonth > latestDataDate) {
-            truncated = true;
-            break;
+        const key = `${year}-${String(month).padStart(2, '0')}`;
+        if (!(key in SP500_MONTHLY_RETURNS)) {
+            return null; // Insufficient data
         }
+        returns.push(SP500_MONTHLY_RETURNS[key]);
 
-        if (SP500_MONTHLY_RETURNS[yearMonth] !== undefined) {
-            returns.push(SP500_MONTHLY_RETURNS[yearMonth]);
-            dates.push(yearMonth);
-            monthsProcessed++;
-        } else {
-            // If data not available in range, use 0 return (conservative)
-            returns.push(0);
-            dates.push(yearMonth);
-            monthsProcessed++;
-        }
-
-        // Move to next month
         month++;
         if (month > 12) {
             month = 1;
@@ -77,328 +50,406 @@ function getMonthlyReturns(startDate, numMonths) {
         }
     }
 
-    return {
-        returns,
-        dates,
-        monthsProcessed,
-        truncated,
-        latestDataDate
-    };
+    return returns;
 }
 
 /**
- * Scenario A: Pay off mortgage with lump sum
- * Then invest the freed-up monthly payment for the remaining time
- *
- * @param {number} balance - Mortgage balance
- * @param {number} rate - Annual interest rate
- * @param {number} years - Remaining years
- * @param {number} lumpSum - Lump sum to apply to mortgage
- * @param {string} startDate - Start date for S&P 500 returns
- * @returns {Object} Results including net worth over time
+ * Scenario A: Invest the lump sum, withdraw monthly for mortgage payments
+ * @param {number} balance - Mortgage balance (also the lump sum)
+ * @param {number} annualRate - Mortgage interest rate
+ * @param {number} years - Mortgage term
+ * @param {number} startYear - Year to start simulation
+ * @param {number} startMonth - Month to start (default 1)
+ * @returns {object} Scenario results
  */
-function scenarioPayoffMortgage(balance, rate, years, lumpSum, startDate) {
-    const totalMonths = years * 12;
-    const originalPayment = calculateMonthlyPayment(balance, rate, years);
+function runInvestScenario(balance, annualRate, years, startYear, startMonth = 1) {
+    const numMonths = years * 12;
+    const monthlyPayment = calculateMonthlyPayment(balance, annualRate, years);
+    const returns = getMonthlyReturns(startYear, startMonth, numMonths);
 
-    // Get S&P 500 returns for the full period
-    const monthlyData = getMonthlyReturns(startDate, totalMonths);
-    const monthlyReturns = monthlyData.returns;
-    const actualMonths = monthlyData.monthsProcessed;
-
-    // Apply lump sum to mortgage
-    let mortgageBalance = balance - lumpSum;
-    let investmentBalance = 0;
-    let totalInterest = 0;
-    let paidOff = mortgageBalance <= 0;
-    let newPayment = 0;
-
-    if (paidOff) {
-        // Mortgage fully paid off
-        mortgageBalance = 0;
-        newPayment = 0;
-    } else {
-        // Mortgage partially paid off - recalculate payment for new balance
-        newPayment = calculateMonthlyPayment(mortgageBalance, rate, years);
+    if (!returns) {
+        return { error: 'Insufficient historical data for this period' };
     }
 
-    // Amount freed up to invest each month
-    const freedAmount = originalPayment - newPayment;
-
-    const monthlyNetWorth = [];
-    const monthlyInvestment = [];
-    const monthlyMortgage = [];
-
-    for (let month = 1; month <= actualMonths; month++) {
-        // Invest freed-up payment amount
-        investmentBalance += freedAmount;
-        // Apply S&P 500 return for this month
-        investmentBalance *= (1 + monthlyReturns[month - 1]);
-
-        // Update mortgage balance (if not paid off)
-        if (!paidOff && mortgageBalance > 0) {
-            const monthlyRate = rate / 12;
-            const interestPayment = mortgageBalance * monthlyRate;
-            const principalPayment = newPayment - interestPayment;
-
-            totalInterest += interestPayment;
-            mortgageBalance -= principalPayment;
-
-            if (mortgageBalance < 0.01) {
-                mortgageBalance = 0;
-                paidOff = true;
-            }
-        }
-
-        // Net worth = investment - mortgage balance
-        const netWorth = investmentBalance - mortgageBalance;
-
-        monthlyNetWorth.push(netWorth);
-        monthlyInvestment.push(investmentBalance);
-        monthlyMortgage.push(mortgageBalance);
-    }
-
-    return {
-        paidOff: lumpSum >= balance,
-        newBalance: Math.max(0, balance - lumpSum),
-        newPayment,
-        freedAmount,
-        totalInterest,
-        finalInvestmentValue: investmentBalance,
-        finalNetWorth: monthlyNetWorth[monthlyNetWorth.length - 1],
-        monthlyNetWorth,
-        monthlyInvestment,
-        monthlyMortgage,
-        truncated: monthlyData.truncated,
-        latestDataDate: monthlyData.latestDataDate,
-        actualMonths
-    };
-}
-
-/**
- * Scenario B: Keep mortgage, invest lump sum, make payments from investment
- *
- * This models the realistic scenario where:
- * - You invest the lump sum in the S&P 500
- * - Each month, you withdraw the mortgage payment from the investment
- * - If the investment runs out before the mortgage is paid off, you've "failed"
- *
- * @param {number} balance - Mortgage balance
- * @param {number} rate - Annual interest rate
- * @param {number} years - Remaining years
- * @param {number} lumpSum - Lump sum to invest
- * @param {string} startDate - Start date for S&P 500 returns
- * @returns {Object} Results including net worth over time
- */
-function scenarioInvestLumpSum(balance, rate, years, lumpSum, startDate) {
-    // Calculate normal mortgage schedule
-    const amortization = calculateAmortizationSchedule(balance, rate, years);
-    const monthlyPayment = amortization.monthlyPayment;
-    const totalMonths = years * 12;
-
-    // Get S&P 500 returns
-    const monthlyData = getMonthlyReturns(startDate, totalMonths);
-    const monthlyReturns = monthlyData.returns;
-    const actualMonths = monthlyData.monthsProcessed;
-
-    // Invest lump sum immediately
-    let investmentBalance = lumpSum;
-    let mortgageBalance = balance;
-    let totalInterest = 0;
+    let investment = balance;
+    const history = [{ month: 0, value: investment }];
     let failed = false;
     let failureMonth = null;
-    const monthlyNetWorth = [];
-    const monthlyInvestment = [];
-    const monthlyMortgage = [];
 
-    for (let month = 1; month <= actualMonths; month++) {
-        // Apply S&P 500 return to investment
-        investmentBalance *= (1 + monthlyReturns[month - 1]);
+    for (let month = 1; month <= numMonths; month++) {
+        // Apply market return
+        investment *= (1 + returns[month - 1]);
 
-        // Withdraw monthly payment from investment to pay mortgage
-        investmentBalance -= monthlyPayment;
+        // Withdraw for mortgage payment
+        investment -= monthlyPayment;
 
-        // Check if investment has run out (failure - can't make payments)
-        if (investmentBalance <= 0 && !failed) {
+        // Check for failure
+        if (investment <= 0 && !failed) {
             failed = true;
             failureMonth = month;
-            investmentBalance = 0; // Can't go negative
+            investment = 0;
         }
 
-        // Update mortgage balance (still tracked even if failed, for comparison)
-        const scheduleEntry = amortization.schedule[month - 1];
-        mortgageBalance = scheduleEntry.balance;
-        totalInterest += scheduleEntry.interest;
-
-        // Net worth = investment - mortgage balance
-        // If failed, investment is 0, so net worth is negative (you still owe the mortgage)
-        const netWorth = investmentBalance - mortgageBalance;
-
-        monthlyNetWorth.push(netWorth);
-        monthlyInvestment.push(investmentBalance);
-        monthlyMortgage.push(mortgageBalance);
+        history.push({ month, value: Math.max(0, investment) });
     }
 
     return {
-        totalInterest,
-        finalInvestmentValue: investmentBalance,
-        investmentGrowth: investmentBalance - lumpSum,
-        finalNetWorth: monthlyNetWorth[monthlyNetWorth.length - 1],
-        monthlyNetWorth,
-        monthlyInvestment,
-        monthlyMortgage,
-        truncated: monthlyData.truncated,
-        latestDataDate: monthlyData.latestDataDate,
-        actualMonths,
+        finalValue: Math.max(0, investment),
         failed,
-        failureMonth
+        failureMonth,
+        history,
+        monthlyPayment
     };
 }
 
 /**
- * Format number as currency
+ * Scenario B: Pay off mortgage, invest monthly payments into S&P 500
+ * @param {number} balance - Mortgage balance (used to pay off)
+ * @param {number} annualRate - Mortgage interest rate (for calculating payment amount)
+ * @param {number} years - Original mortgage term
+ * @param {number} startYear - Year to start simulation
+ * @param {number} startMonth - Month to start (default 1)
+ * @returns {object} Scenario results
  */
-function formatCurrency(value) {
-    return new Intl.NumberFormat('en-US', {
-        style: 'currency',
-        currency: 'USD',
-        minimumFractionDigits: 0,
-        maximumFractionDigits: 0
-    }).format(value);
+function runPayoffScenario(balance, annualRate, years, startYear, startMonth = 1) {
+    const numMonths = years * 12;
+    const monthlyContribution = calculateMonthlyPayment(balance, annualRate, years);
+    const returns = getMonthlyReturns(startYear, startMonth, numMonths);
+
+    if (!returns) {
+        return { error: 'Insufficient historical data for this period' };
+    }
+
+    let investment = 0; // Start with nothing invested
+    const history = [{ month: 0, value: investment }];
+
+    for (let month = 1; month <= numMonths; month++) {
+        // Add monthly contribution (what would have been mortgage payment)
+        investment += monthlyContribution;
+
+        // Apply market return
+        investment *= (1 + returns[month - 1]);
+
+        history.push({ month, value: investment });
+    }
+
+    return {
+        finalValue: investment,
+        failed: false,
+        failureMonth: null,
+        history,
+        monthlyContribution
+    };
 }
 
 /**
- * Format number with one decimal place
+ * Compare both scenarios for a single start year
+ * @param {number} balance - Mortgage balance
+ * @param {number} annualRate - Mortgage interest rate
+ * @param {number} years - Mortgage term
+ * @param {number} startYear - Year to start
+ * @returns {object} Comparison results
  */
-function formatDecimal(value, decimals = 1) {
-    return value.toFixed(decimals);
-}
+function compareScenarios(balance, annualRate, years, startYear) {
+    const invest = runInvestScenario(balance, annualRate, years, startYear);
+    const payoff = runPayoffScenario(balance, annualRate, years, startYear);
 
-/**
- * Display comparison results
- */
-function displayResults(payoffResults, investResults, lumpSum) {
-    // Show results section
-    document.getElementById('resultsSection').classList.add('active');
+    if (invest.error || payoff.error) {
+        return { error: invest.error || payoff.error };
+    }
 
-    // Payoff scenario (always fully paid off since lumpSum = balance)
-    document.getElementById('payoffStatus').textContent = 'Fully Paid';
-    const interestSaved = investResults.totalInterest - payoffResults.totalInterest;
-    document.getElementById('payoffInterestSaved').textContent = formatCurrency(interestSaved);
-    document.getElementById('payoffInvestment').textContent = formatCurrency(payoffResults.finalInvestmentValue);
-    document.getElementById('payoffNetWorth').textContent = formatCurrency(payoffResults.finalNetWorth);
-
-    // Invest scenario
-    document.getElementById('investValue').textContent = formatCurrency(investResults.finalInvestmentValue);
-    document.getElementById('investInterest').textContent = formatCurrency(investResults.totalInterest);
-    document.getElementById('investGrowth').textContent = formatCurrency(investResults.investmentGrowth);
-    document.getElementById('investNetWorth').textContent = formatCurrency(investResults.finalNetWorth);
-
-    // Winner
-    const payoffCard = document.getElementById('payoffCard');
-    const investCard = document.getElementById('investCard');
-    payoffCard.classList.remove('winner');
-    investCard.classList.remove('winner');
-
-    if (payoffResults.finalNetWorth > investResults.finalNetWorth) {
-        document.getElementById('winnerStrategy').textContent = 'Pay Off Mortgage';
-        document.getElementById('winnerAdvantage').textContent = formatCurrency(payoffResults.finalNetWorth - investResults.finalNetWorth);
-        document.getElementById('winnerNote').textContent = 'Paying off your mortgage wins. The guaranteed return (your interest rate) beats the market for this period.';
-        payoffCard.classList.add('winner');
+    let winner;
+    if (invest.failed) {
+        winner = 'payoff';
+    } else if (invest.finalValue > payoff.finalValue) {
+        winner = 'invest';
     } else {
-        document.getElementById('winnerStrategy').textContent = 'Invest the Cash';
-        document.getElementById('winnerAdvantage').textContent = formatCurrency(investResults.finalNetWorth - payoffResults.finalNetWorth);
-        document.getElementById('winnerNote').textContent = 'Investing wins. S&P 500 returns outpaced your mortgage interest rate for this period.';
-        investCard.classList.add('winner');
+        winner = 'payoff';
     }
 
-    // Scroll to results
-    document.getElementById('resultsSection').scrollIntoView({ behavior: 'smooth', block: 'start' });
+    return {
+        invest,
+        payoff,
+        winner,
+        difference: invest.finalValue - payoff.finalValue
+    };
 }
 
 /**
- * Display net worth comparison chart
+ * Run historical analysis across all applicable start years
+ * @param {number} balance - Mortgage balance
+ * @param {number} annualRate - Mortgage interest rate
+ * @param {number} years - Mortgage term
+ * @returns {object} Historical analysis results
  */
-let netWorthChart = null;
+function runHistoricalAnalysis(balance, annualRate, years) {
+    const results = [];
 
-function displayChart(payoffResults, investResults) {
-    const ctx = document.getElementById('netWorthChart').getContext('2d');
+    // Get the range of available years
+    const keys = Object.keys(SP500_MONTHLY_RETURNS).sort();
+    const firstYear = parseInt(keys[0].split('-')[0]);
+    const lastKey = keys[keys.length - 1];
+    const lastYear = parseInt(lastKey.split('-')[0]);
+    const lastMonth = parseInt(lastKey.split('-')[1]);
 
-    // Use actual months processed (may be less than requested if data unavailable)
-    const actualMonths = payoffResults.actualMonths;
-    const labels = [];
-    for (let month = 0; month <= actualMonths; month += 12) {
-        labels.push(`Year ${month / 12}`);
+    // Calculate the latest start year that has enough data
+    // Need years*12 months of data starting from January
+    const latestStartYear = lastYear - years;
+
+    let investWins = 0;
+    let payoffWins = 0;
+    let failures = 0;
+
+    for (let year = firstYear; year <= latestStartYear; year++) {
+        const result = compareScenarios(balance, annualRate, years, year);
+
+        if (result.error) continue;
+
+        results.push({
+            startYear: year,
+            investFinal: result.invest.finalValue,
+            payoffFinal: result.payoff.finalValue,
+            winner: result.winner,
+            difference: result.difference,
+            investFailed: result.invest.failed,
+            failureMonth: result.invest.failureMonth
+        });
+
+        if (result.invest.failed) {
+            failures++;
+            payoffWins++; // Failure counts as payoff win
+        } else if (result.winner === 'invest') {
+            investWins++;
+        } else {
+            payoffWins++;
+        }
     }
 
-    // Sample data points (yearly)
-    const payoffData = [0];
-    const investData = [0];
-    for (let month = 12; month <= actualMonths; month += 12) {
-        payoffData.push(payoffResults.monthlyNetWorth[month - 1]);
-        investData.push(investResults.monthlyNetWorth[month - 1]);
+    const totalYears = results.length;
+
+    return {
+        results,
+        summary: {
+            totalYears,
+            investWins,
+            payoffWins,
+            failures,
+            investWinRate: totalYears > 0 ? (investWins / totalYears * 100).toFixed(1) : 0
+        }
+    };
+}
+
+// ============================================================================
+// UI FUNCTIONS
+// ============================================================================
+
+let comparisonChart = null;
+
+/**
+ * Initialize the application
+ */
+function init() {
+    populateYearDropdown();
+    setupTabs();
+    setupCalculateButton();
+
+    // Run initial calculation
+    calculate();
+}
+
+/**
+ * Populate the start year dropdown with available years
+ */
+function populateYearDropdown() {
+    const select = document.getElementById('startYear');
+    const termInput = document.getElementById('term');
+    const years = parseInt(termInput.value) || 30;
+
+    // Get available years
+    const keys = Object.keys(SP500_MONTHLY_RETURNS).sort();
+    const firstYear = parseInt(keys[0].split('-')[0]);
+    const lastKey = keys[keys.length - 1];
+    const lastYear = parseInt(lastKey.split('-')[0]);
+    const latestStartYear = lastYear - years;
+
+    select.innerHTML = '';
+
+    for (let year = latestStartYear; year >= firstYear; year--) {
+        const option = document.createElement('option');
+        option.value = year;
+        option.textContent = year;
+        if (year === 1990) option.selected = true;
+        select.appendChild(option);
     }
+
+    // If 1990 not available, select first option
+    if (!select.value) {
+        select.selectedIndex = 0;
+    }
+}
+
+/**
+ * Setup tab switching
+ */
+function setupTabs() {
+    const tabs = document.querySelectorAll('.tab');
+    const panels = document.querySelectorAll('.tab-panel');
+
+    tabs.forEach(tab => {
+        tab.addEventListener('click', () => {
+            const targetId = tab.dataset.tab;
+
+            tabs.forEach(t => t.classList.remove('active'));
+            panels.forEach(p => p.classList.remove('active'));
+
+            tab.classList.add('active');
+            document.getElementById(targetId).classList.add('active');
+        });
+    });
+}
+
+/**
+ * Setup calculate button
+ */
+function setupCalculateButton() {
+    document.getElementById('calculate').addEventListener('click', calculate);
+
+    // Also recalculate when term changes (affects available years)
+    document.getElementById('term').addEventListener('change', () => {
+        populateYearDropdown();
+    });
+}
+
+/**
+ * Main calculation function
+ */
+function calculate() {
+    const balance = parseFloat(document.getElementById('balance').value);
+    const rate = parseFloat(document.getElementById('rate').value) / 100;
+    const years = parseInt(document.getElementById('term').value);
+    const startYear = parseInt(document.getElementById('startYear').value);
+
+    // Run single-year comparison
+    const comparison = compareScenarios(balance, rate, years, startYear);
+    if (!comparison.error) {
+        displayComparisonResults(comparison, startYear, years);
+        renderComparisonChart(comparison, years);
+    }
+
+    // Run historical analysis
+    const historical = runHistoricalAnalysis(balance, rate, years);
+    displayHistoricalResults(historical);
+}
+
+/**
+ * Display comparison results for a single year
+ */
+function displayComparisonResults(comparison, startYear, years) {
+    const investValueEl = document.getElementById('invest-value');
+    const investStatusEl = document.getElementById('invest-status');
+    const investCardEl = document.getElementById('invest-result');
+
+    const payoffValueEl = document.getElementById('payoff-value');
+    const payoffStatusEl = document.getElementById('payoff-status');
+    const payoffCardEl = document.getElementById('payoff-result');
+
+    // Format currency
+    const formatCurrency = (val) => '$' + Math.round(val).toLocaleString();
+
+    // Invest results
+    if (comparison.invest.failed) {
+        investValueEl.textContent = '$0';
+        investStatusEl.textContent = `FAILED at month ${comparison.invest.failureMonth}`;
+        investStatusEl.className = 'status failed';
+    } else {
+        investValueEl.textContent = formatCurrency(comparison.invest.finalValue);
+        investStatusEl.textContent = `After ${years} years (${startYear}-${startYear + years})`;
+        investStatusEl.className = 'status';
+    }
+
+    // Payoff results
+    payoffValueEl.textContent = formatCurrency(comparison.payoff.finalValue);
+    payoffStatusEl.textContent = `After ${years} years (${startYear}-${startYear + years})`;
+    payoffStatusEl.className = 'status';
+
+    // Highlight winner
+    investCardEl.classList.remove('winner');
+    payoffCardEl.classList.remove('winner');
+
+    if (comparison.winner === 'invest') {
+        investCardEl.classList.add('winner');
+    } else {
+        payoffCardEl.classList.add('winner');
+    }
+}
+
+/**
+ * Render comparison chart
+ */
+function renderComparisonChart(comparison, years) {
+    const ctx = document.getElementById('comparison-chart').getContext('2d');
 
     // Destroy existing chart
-    if (netWorthChart) {
-        netWorthChart.destroy();
+    if (comparisonChart) {
+        comparisonChart.destroy();
     }
 
-    netWorthChart = new Chart(ctx, {
+    // Prepare data - sample yearly for cleaner chart
+    const investData = [];
+    const payoffData = [];
+    const labels = [];
+
+    for (let year = 0; year <= years; year++) {
+        const monthIndex = year * 12;
+        labels.push(`Year ${year}`);
+        investData.push(comparison.invest.history[monthIndex]?.value || 0);
+        payoffData.push(comparison.payoff.history[monthIndex]?.value || 0);
+    }
+
+    comparisonChart = new Chart(ctx, {
         type: 'line',
         data: {
-            labels: labels,
+            labels,
             datasets: [
-                {
-                    label: 'Pay Off Mortgage',
-                    data: payoffData,
-                    borderColor: 'rgb(59, 130, 246)',
-                    backgroundColor: 'rgba(59, 130, 246, 0.1)',
-                    tension: 0.1,
-                    fill: false
-                },
                 {
                     label: 'Invest Lump Sum',
                     data: investData,
-                    borderColor: 'rgb(34, 197, 94)',
-                    backgroundColor: 'rgba(34, 197, 94, 0.1)',
-                    tension: 0.1,
-                    fill: false
+                    borderColor: '#0077bb',
+                    backgroundColor: 'rgba(0, 119, 187, 0.1)',
+                    fill: true,
+                    tension: 0.1
+                },
+                {
+                    label: 'Pay Off Mortgage',
+                    data: payoffData,
+                    borderColor: '#ee7733',
+                    backgroundColor: 'rgba(238, 119, 51, 0.1)',
+                    fill: true,
+                    tension: 0.1
                 }
             ]
         },
         options: {
             responsive: true,
-            maintainAspectRatio: true,
-            interaction: {
-                mode: 'index',
-                intersect: false
-            },
+            maintainAspectRatio: false,
             plugins: {
                 legend: {
-                    display: true,
-                    position: 'top'
+                    display: false // Using custom legend
                 },
                 tooltip: {
                     callbacks: {
-                        label: function(context) {
-                            return context.dataset.label + ': ' + formatCurrency(context.parsed.y);
+                        label: (context) => {
+                            return context.dataset.label + ': $' +
+                                   Math.round(context.raw).toLocaleString();
                         }
                     }
                 }
             },
             scales: {
                 y: {
+                    beginAtZero: true,
                     ticks: {
-                        callback: function(value) {
-                            return formatCurrency(value);
-                        }
-                    }
-                },
-                x: {
-                    title: {
-                        display: true,
-                        text: 'Years'
+                        callback: (value) => '$' + (value / 1000).toFixed(0) + 'k'
                     }
                 }
             }
@@ -407,196 +458,96 @@ function displayChart(payoffResults, investResults) {
 }
 
 /**
- * Form submission handler
- */
-document.getElementById('calculatorForm').addEventListener('submit', function(e) {
-    e.preventDefault();
-
-    try {
-        // Get form values
-        const balance = parseFloat(document.getElementById('balance').value);
-        const rate = parseFloat(document.getElementById('rate').value) / 100;
-        const years = parseFloat(document.getElementById('years').value);
-        const startDate = document.getElementById('startDate').value;
-
-        // Lump sum equals mortgage balance
-        const lumpSum = balance;
-
-        // Validate
-        if (balance <= 0 || rate <= 0 || years <= 0) {
-            alert('Please enter valid positive values for balance, rate, and years');
-            return;
-        }
-
-        // Run both scenarios
-        const payoffResults = scenarioPayoffMortgage(balance, rate, years, lumpSum, startDate);
-        const investResults = scenarioInvestLumpSum(balance, rate, years, lumpSum, startDate);
-
-        // Check if data was truncated
-        const warningDiv = document.getElementById('dataWarning');
-        const warningMessage = document.getElementById('warningMessage');
-
-        if (payoffResults.truncated) {
-            const requestedYears = years;
-            const actualYears = (payoffResults.actualMonths / 12).toFixed(1);
-            const latestDate = payoffResults.latestDataDate;
-
-            warningMessage.textContent = `The requested ${requestedYears}-year period extends beyond available S&P 500 data. Results shown for ${actualYears} years through ${latestDate}.`;
-            warningDiv.style.display = 'block';
-        } else {
-            warningDiv.style.display = 'none';
-        }
-
-        // Display results
-        displayResults(payoffResults, investResults, lumpSum);
-        displayChart(payoffResults, investResults);
-
-    } catch (error) {
-        alert('Error: ' + error.message);
-        console.error(error);
-    }
-});
-
-/**
- * Run historical comparison across all valid starting years
- */
-function runHistoricalAnalysis() {
-    const balance = parseFloat(document.getElementById('balance').value);
-    const rate = parseFloat(document.getElementById('rate').value) / 100;
-    const years = parseFloat(document.getElementById('years').value);
-
-    if (balance <= 0 || rate <= 0 || years <= 0) {
-        alert('Please enter valid values first');
-        return;
-    }
-
-    const dataRange = getDataRange();
-    const firstYear = parseInt(dataRange.firstDate.split('-')[0]);
-    const lastYear = parseInt(dataRange.lastDate.split('-')[0]);
-
-    // Calculate the last valid starting year (need full 'years' of data)
-    const lastValidStartYear = lastYear - Math.ceil(years);
-
-    const results = [];
-    let payoffWins = 0;
-    let investWins = 0;
-
-    // Run analysis for each valid starting year
-    for (let startYear = firstYear; startYear <= lastValidStartYear; startYear++) {
-        const startDate = `${startYear}-01-01`;
-
-        try {
-            const payoff = scenarioPayoffMortgage(balance, rate, years, balance, startDate);
-            const invest = scenarioInvestLumpSum(balance, rate, years, balance, startDate);
-
-            // Skip if data was truncated (incomplete period)
-            if (payoff.truncated || invest.truncated) {
-                continue;
-            }
-
-            const payoffNetWorth = payoff.finalNetWorth;
-            const investNetWorth = invest.finalNetWorth;
-            const investWinsThisYear = investNetWorth > payoffNetWorth;
-
-            if (investWinsThisYear) {
-                investWins++;
-            } else {
-                payoffWins++;
-            }
-
-            results.push({
-                startYear,
-                payoffNetWorth,
-                investNetWorth,
-                winner: investWinsThisYear ? 'Invest' : 'Payoff',
-                advantage: Math.abs(investNetWorth - payoffNetWorth)
-            });
-        } catch (e) {
-            // Skip years with errors
-            continue;
-        }
-    }
-
-    // Display results
-    displayHistoricalResults(results, payoffWins, investWins, years);
-}
-
-/**
  * Display historical analysis results
  */
-function displayHistoricalResults(results, payoffWins, investWins, years) {
-    const resultsDiv = document.getElementById('historicalResults');
-    const summaryDiv = document.getElementById('historicalSummary');
-    const tbody = document.getElementById('historicalTableBody');
-
-    if (!resultsDiv || !summaryDiv || !tbody) return;
-
-    const total = payoffWins + investWins;
-    const investPct = ((investWins / total) * 100).toFixed(1);
-    const payoffPct = ((payoffWins / total) * 100).toFixed(1);
-
+function displayHistoricalResults(historical) {
     // Summary
-    summaryDiv.innerHTML = `
-        <h3>Historical Results Summary</h3>
-        <p><strong>${total}</strong> ${years}-year periods analyzed (${results[0]?.startYear || 'N/A'} - ${results[results.length - 1]?.startYear || 'N/A'})</p>
-        <div style="display: flex; gap: 2rem; margin-top: 1rem;">
-            <div>
-                <div class="label">Invest Wins</div>
-                <div class="value positive">${investWins} (${investPct}%)</div>
-            </div>
-            <div>
-                <div class="label">Payoff Wins</div>
-                <div class="value negative">${payoffWins} (${payoffPct}%)</div>
-            </div>
-        </div>
-        <p class="note" style="margin-top: 1rem;">
-            Historically, investing won ${investPct}% of the time for ${years}-year periods.
-        </p>
+    const summaryEl = document.getElementById('summary-text');
+    const s = historical.summary;
+
+    summaryEl.innerHTML = `
+        <strong>Invest wins:</strong> ${s.investWins} of ${s.totalYears} years (${s.investWinRate}%)<br>
+        <strong>Payoff wins:</strong> ${s.payoffWins} of ${s.totalYears} years (${(100 - s.investWinRate).toFixed(1)}%)<br>
+        <strong>Invest failures (foreclosure):</strong> ${s.failures}
     `;
 
-    // Table rows
-    tbody.innerHTML = results.map(r => `
-        <tr>
-            <td>${r.startYear}</td>
-            <td>${formatCurrency(r.payoffNetWorth)}</td>
-            <td>${formatCurrency(r.investNetWorth)}</td>
-            <td class="${r.winner === 'Invest' ? 'positive' : 'negative'}">${r.winner}</td>
-            <td>${formatCurrency(r.advantage)}</td>
-        </tr>
-    `).join('');
+    // Heat map
+    renderHeatmap(historical.results);
 
-    resultsDiv.style.display = 'block';
+    // Table
+    renderHistoryTable(historical.results);
 }
 
 /**
- * Historical analysis button handler
+ * Render heat map
  */
-document.getElementById('runHistoricalBtn')?.addEventListener('click', function() {
-    this.textContent = 'Running...';
-    this.disabled = true;
+function renderHeatmap(results) {
+    const container = document.getElementById('heatmap');
+    container.innerHTML = '';
 
-    // Use setTimeout to allow UI to update
-    setTimeout(() => {
-        runHistoricalAnalysis();
-        this.textContent = 'Run Historical Analysis';
-        this.disabled = false;
-    }, 50);
-});
+    results.forEach(r => {
+        const cell = document.createElement('div');
+        cell.className = 'heatmap-cell';
 
-// Initialize on page load
-document.addEventListener('DOMContentLoaded', function() {
-    displayDataFreshness();
+        if (r.investFailed) {
+            cell.classList.add('failed');
+            cell.title = `${r.startYear}: Invest FAILED (foreclosure)`;
+        } else if (r.winner === 'invest') {
+            cell.classList.add('invest');
+            cell.title = `${r.startYear}: Invest won by $${Math.round(r.difference).toLocaleString()}`;
+        } else {
+            cell.classList.add('payoff');
+            cell.title = `${r.startYear}: Payoff won by $${Math.round(-r.difference).toLocaleString()}`;
+        }
 
-    // Update date input constraints based on available data
-    const dataRange = getDataRange();
-    const startInput = document.getElementById('startDate');
-    if (startInput) {
-        startInput.min = dataRange.firstDate + '-01';
-    }
+        cell.textContent = String(r.startYear).slice(-2);
+        container.appendChild(cell);
+    });
+}
 
-    // Calculate with default parameters on page load
-    const form = document.getElementById('calculatorForm');
-    if (form) {
-        form.dispatchEvent(new Event('submit'));
-    }
-});
+/**
+ * Render history table
+ */
+function renderHistoryTable(results) {
+    const tbody = document.querySelector('#history-table tbody');
+    tbody.innerHTML = '';
+
+    const formatCurrency = (val) => '$' + Math.round(val).toLocaleString();
+
+    // Show most recent first
+    const reversed = [...results].reverse();
+
+    reversed.forEach(r => {
+        const tr = document.createElement('tr');
+
+        let winnerClass = r.winner === 'invest' ? 'winner-invest' : 'winner-payoff';
+        if (r.investFailed) winnerClass = 'winner-payoff';
+
+        tr.className = winnerClass;
+
+        const investDisplay = r.investFailed
+            ? `<span class="failed">FAILED (month ${r.failureMonth})</span>`
+            : formatCurrency(r.investFinal);
+
+        const winnerDisplay = r.investFailed
+            ? 'Payoff (Invest failed)'
+            : (r.winner === 'invest' ? 'Invest' : 'Payoff');
+
+        const diffDisplay = r.investFailed
+            ? '—'
+            : (r.difference >= 0 ? '+' : '') + formatCurrency(r.difference);
+
+        tr.innerHTML = `
+            <td>${r.startYear}</td>
+            <td>${investDisplay}</td>
+            <td>${formatCurrency(r.payoffFinal)}</td>
+            <td>${winnerDisplay}</td>
+            <td>${diffDisplay}</td>
+        `;
+
+        tbody.appendChild(tr);
+    });
+}
+
+// Initialize on load
+document.addEventListener('DOMContentLoaded', init);

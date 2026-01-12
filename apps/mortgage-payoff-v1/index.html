@@ -1,0 +1,235 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Mortgage Payoff vs Invest Calculator</title>
+    <link rel="stylesheet" href="simple.min.css">
+    <link rel="stylesheet" href="../app-theme.css">
+    <style>
+        /* Override simple.min.css for this app */
+        body { background: var(--color-bg-white); display: block; color: var(--color-text); }
+        main { padding: 0 20px 20px; max-width: 1200px; margin: 0 auto; }
+        header.app-header { background: var(--color-bg-white); border-bottom: 1px solid var(--color-border-light); padding: 8px 20px; text-align: left; }
+        header.app-header h1 { font-size: 1.1rem; margin: 0; }
+        header.app-header p { margin: 0; }
+        header.app-header nav a { background: none; border: none; padding: 0; color: var(--color-primary); }
+        header.app-header nav a:hover { background: none; text-decoration: underline; }
+        .summary-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 1.5rem;
+            margin: 1.5rem 0;
+        }
+        .summary-card {
+            padding: 1.5rem;
+            background: var(--color-bg);
+            border: 1px solid var(--color-border-light);
+            border-radius: var(--border-radius);
+            color: var(--color-text);
+        }
+        .summary-card h3 {
+            margin-top: 0;
+            color: var(--color-text);
+            font-size: 1.2rem;
+        }
+        .summary-card .label {
+            font-size: 0.9rem;
+            color: var(--color-text-light);
+            margin-top: 1rem;
+        }
+        .summary-card .value {
+            font-size: 1.8rem;
+            font-weight: bold;
+            margin: 0.5rem 0;
+        }
+        .winner {
+            background: var(--color-bg);
+            border: 2px solid var(--color-primary);
+        }
+        .positive { color: var(--color-success); }
+        .negative { color: var(--color-danger); }
+        #resultsSection { display: none; }
+        #resultsSection.active { display: block; }
+        #chartContainer {
+            margin: 2rem 0;
+            padding: 1.5rem;
+            background: var(--color-bg);
+            border: 1px solid var(--color-border-light);
+            border-radius: var(--border-radius);
+        }
+        .note {
+            font-style: italic;
+            color: var(--color-text-light);
+            font-size: 0.9rem;
+            margin: 0.5rem 0;
+        }
+        form {
+            background: var(--color-bg);
+            padding: 1.5rem;
+            border-radius: var(--border-radius);
+            margin: 1.5rem 0;
+        }
+        form input {
+            background: var(--color-bg-white);
+            color: var(--color-text);
+            border: 1px solid var(--color-border-light);
+        }
+        .form-section {
+            margin-bottom: 2rem;
+            padding-bottom: 1rem;
+            border-bottom: 1px solid var(--color-border-light);
+        }
+        .form-section:last-of-type {
+            border-bottom: none;
+        }
+        .form-section h3 {
+            margin-top: 0;
+            color: var(--color-text);
+        }
+    </style>
+</head>
+<body>
+    <header class="app-header">
+        <div class="header-left">
+            <h1>Mortgage Payoff vs Invest</h1>
+            <span class="subtitle">Pay off mortgage or invest in S&P 500?</span>
+        </div>
+        <nav>
+            <a href="https://marhar.github.io/">Home</a>
+            <a href="../stockreturns/">Stock Returns</a>
+            <a href="https://github.com/marhar/marhar.github.io/tree/master/apps/mortgage-payoff">Source</a>
+        </nav>
+    </header>
+
+    <main>
+        <section>
+            <h2>Calculator Inputs</h2>
+            <p id="dataFreshness" class="note" style="margin-bottom: 1rem;"></p>
+            <form id="calculatorForm">
+                <div class="form-section">
+                    <h3>Mortgage Details</h3>
+
+                    <label for="balance">Current Mortgage Balance ($)</label>
+                    <input type="number" id="balance" name="balance" value="300000" min="1000" step="1000" required>
+
+                    <label for="rate">Interest Rate (%)</label>
+                    <input type="number" id="rate" name="rate" value="3.5" min="0.1" max="20" step="0.1" required>
+
+                    <label for="years">Remaining Years</label>
+                    <input type="number" id="years" name="years" value="25" min="1" max="40" step="1" required>
+                </div>
+
+                <div class="form-section">
+                    <h3>Investment Timeframe</h3>
+
+                    <label for="startDate">Start Date</label>
+                    <input type="date" id="startDate" name="startDate" value="2020-01-01" min="1928-02-01" required>
+
+                    <p class="note">Compares: (A) Pay off mortgage completely, then invest freed monthly payment vs (B) Keep mortgage, invest the cash equivalent</p>
+                </div>
+
+                <button type="submit">Compare Scenarios</button>
+            </form>
+        </section>
+
+        <section id="resultsSection">
+            <h2>Scenario Comparison</h2>
+
+            <div id="dataWarning" class="note" style="display: none; background: #fff3cd; padding: 1rem; border: 1px solid #ffc107; border-radius: 4px; margin-bottom: 1rem;">
+                <strong>Note:</strong> <span id="warningMessage"></span>
+            </div>
+
+            <div class="summary-grid">
+                <div class="summary-card" id="payoffCard">
+                    <h3>Scenario A: Pay Off Mortgage</h3>
+                    <p class="note">Pay off mortgage, then invest freed monthly payment</p>
+                    <div class="label">Status</div>
+                    <div class="value" id="payoffStatus">Paid Off</div>
+                    <div class="label">Interest Saved</div>
+                    <div id="payoffInterestSaved" class="positive">$0</div>
+                    <div class="label">Investment (Freed Payment)</div>
+                    <div id="payoffInvestment">$0</div>
+                    <div class="label">Net Worth at End</div>
+                    <div class="value" id="payoffNetWorth">$0</div>
+                </div>
+
+                <div class="summary-card" id="investCard">
+                    <h3>Scenario B: Invest the Cash</h3>
+                    <p class="note">Keep mortgage, invest lump sum immediately</p>
+                    <div class="label">Investment Value</div>
+                    <div class="value" id="investValue">$0</div>
+                    <div class="label">Interest Paid on Mortgage</div>
+                    <div id="investInterest" class="negative">$0</div>
+                    <div class="label">Investment Growth</div>
+                    <div id="investGrowth" class="positive">$0</div>
+                    <div class="label">Net Worth at End</div>
+                    <div class="value" id="investNetWorth">$0</div>
+                </div>
+
+                <div class="summary-card">
+                    <h3>Winner</h3>
+                    <div class="label">Best Strategy</div>
+                    <div class="value" id="winnerStrategy">-</div>
+                    <div class="label">Net Worth Advantage</div>
+                    <div class="value" id="winnerAdvantage">$0</div>
+                    <div id="winnerNote" class="note"></div>
+                </div>
+            </div>
+
+            <div id="chartContainer">
+                <h3>Net Worth Over Time</h3>
+                <canvas id="netWorthChart"></canvas>
+            </div>
+
+            <div class="note" style="margin-top: 2rem;">
+                <strong>Important:</strong> This calculator uses actual historical S&P 500 returns.
+                Past performance does not guarantee future results. Paying off your mortgage provides
+                a guaranteed return equal to your interest rate, while investing carries market risk.
+                Consider your risk tolerance and financial situation before making decisions.
+            </div>
+
+            <div id="historicalSection" style="margin-top: 2rem;">
+                <h3>Historical Comparison</h3>
+                <p class="note">Run the same scenario starting from every year with complete data</p>
+                <button type="button" id="runHistoricalBtn">Run Historical Analysis</button>
+
+                <div id="historicalResults" style="display: none; margin-top: 1rem;">
+                    <div id="historicalSummary" class="summary-card" style="margin-bottom: 1rem;">
+                    </div>
+                    <div style="max-height: 400px; overflow-y: auto;">
+                        <table id="historicalTable" style="width: 100%;">
+                            <thead>
+                                <tr>
+                                    <th>Start Year</th>
+                                    <th>Payoff Net Worth</th>
+                                    <th>Invest Net Worth</th>
+                                    <th>Winner</th>
+                                    <th>Advantage</th>
+                                </tr>
+                            </thead>
+                            <tbody id="historicalTableBody">
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <div style="margin-top: 2rem; padding: 1rem; background: var(--accent-bg); border-radius: var(--standard-border-radius);">
+                <strong>See Also:</strong>
+                <ul style="margin: 0.5rem 0 0 0;">
+                    <li><a href="rate-analysis.html">Rate vs Win Rate Analysis</a> — Compare win rates across mortgage rates for 30-year and 15-year terms</li>
+                    <li><a href="comprehensive-analysis.html">Comprehensive Rate/Term Analysis</a> — 3D visualization of win rates across all rates (0-12%) and terms (1-30 years)</li>
+                    <li><a href="risk-analysis.html">Risk Analysis</a> — Win magnitude, worst cases, regret analysis, and outcome distributions</li>
+                    <li><a href="catastrophic-risk.html">Catastrophic Risk</a> — Underwater analysis, drawdowns, and foreclosure risk if you lose income</li>
+                </ul>
+            </div>
+        </section>
+    </main>
+
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+    <script src="sp500_data.js"></script>
+    <script src="mortgage.js"></script>
+    <script src="app.js"></script>
+</body>
+</html>
