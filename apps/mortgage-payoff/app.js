@@ -333,7 +333,7 @@ function calculate() {
     const comparison = compareScenarios(balance, rate, years, startYear);
     if (!comparison.error) {
         displayComparisonResults(comparison, startYear, years);
-        renderComparisonChart(comparison, years);
+        renderComparisonChart(comparison, years, startYear);
     }
 
     // Run historical analysis
@@ -386,7 +386,7 @@ function displayComparisonResults(comparison, startYear, years) {
 /**
  * Render comparison chart
  */
-function renderComparisonChart(comparison, years) {
+function renderComparisonChart(comparison, years, startYear) {
     const ctx = document.getElementById('comparison-chart').getContext('2d');
 
     // Destroy existing chart
@@ -397,13 +397,18 @@ function renderComparisonChart(comparison, years) {
     // Prepare data - sample yearly for cleaner chart
     const investData = [];
     const payoffData = [];
+    const diffData = [];
     const labels = [];
 
     for (let year = 0; year <= years; year++) {
         const monthIndex = year * 12;
-        labels.push(`Year ${year}`);
-        investData.push(comparison.invest.history[monthIndex]?.value || 0);
-        payoffData.push(comparison.payoff.history[monthIndex]?.value || 0);
+        const investVal = comparison.invest.history[monthIndex]?.value || 0;
+        const payoffVal = comparison.payoff.history[monthIndex]?.value || 0;
+
+        labels.push(startYear + year);
+        investData.push(investVal);
+        payoffData.push(payoffVal);
+        diffData.push(investVal - payoffVal);
     }
 
     comparisonChart = new Chart(ctx, {
@@ -412,20 +417,32 @@ function renderComparisonChart(comparison, years) {
             labels,
             datasets: [
                 {
-                    label: 'Invest Lump Sum',
+                    label: 'Invest',
                     data: investData,
                     borderColor: '#0077bb',
-                    backgroundColor: 'rgba(0, 119, 187, 0.1)',
-                    fill: true,
-                    tension: 0.1
+                    borderWidth: 2,
+                    fill: false,
+                    tension: 0.1,
+                    pointRadius: 2
                 },
                 {
-                    label: 'Pay Off Mortgage',
+                    label: 'Payoff',
                     data: payoffData,
                     borderColor: '#ee7733',
-                    backgroundColor: 'rgba(238, 119, 51, 0.1)',
-                    fill: true,
-                    tension: 0.1
+                    borderWidth: 2,
+                    fill: false,
+                    tension: 0.1,
+                    pointRadius: 2
+                },
+                {
+                    label: 'Difference',
+                    data: diffData,
+                    borderColor: '#009988',
+                    borderWidth: 2,
+                    fill: false,
+                    tension: 0.1,
+                    pointRadius: 2,
+                    borderDash: [5, 5]
                 }
             ]
         },
@@ -439,15 +456,16 @@ function renderComparisonChart(comparison, years) {
                 tooltip: {
                     callbacks: {
                         label: (context) => {
+                            const val = context.raw;
+                            const sign = val >= 0 ? '' : '';
                             return context.dataset.label + ': $' +
-                                   Math.round(context.raw).toLocaleString();
+                                   Math.round(val).toLocaleString();
                         }
                     }
                 }
             },
             scales: {
                 y: {
-                    beginAtZero: true,
                     ticks: {
                         callback: (value) => '$' + (value / 1000).toFixed(0) + 'k'
                     }
@@ -455,6 +473,46 @@ function renderComparisonChart(comparison, years) {
             }
         }
     });
+
+    // Also render the comparison table
+    renderComparisonTable(comparison, years, startYear);
+}
+
+/**
+ * Render year-by-year comparison table
+ */
+function renderComparisonTable(comparison, years, startYear) {
+    const tbody = document.querySelector('#comparison-table tbody');
+    tbody.innerHTML = '';
+
+    const formatCurrency = (val) => '$' + Math.round(val).toLocaleString();
+
+    for (let year = 0; year <= years; year++) {
+        const monthIndex = year * 12;
+        const investVal = comparison.invest.history[monthIndex]?.value || 0;
+        const payoffVal = comparison.payoff.history[monthIndex]?.value || 0;
+        const diff = investVal - payoffVal;
+
+        const tr = document.createElement('tr');
+
+        // Highlight winner
+        if (diff > 0) {
+            tr.className = 'winner-invest';
+        } else if (diff < 0) {
+            tr.className = 'winner-payoff';
+        }
+
+        const diffDisplay = (diff >= 0 ? '+' : '') + formatCurrency(diff);
+
+        tr.innerHTML = `
+            <td>${startYear + year}</td>
+            <td>${formatCurrency(investVal)}</td>
+            <td>${formatCurrency(payoffVal)}</td>
+            <td>${diffDisplay}</td>
+        `;
+
+        tbody.appendChild(tr);
+    }
 }
 
 /**

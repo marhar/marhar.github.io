@@ -372,6 +372,10 @@
                         <div class="legend-swatch payoff"></div>
                         <span>Pay Off Mortgage</span>
                     </div>
+                    <div class="legend-item">
+                        <div class="legend-swatch" style="background: #009988"></div>
+                        <span>Difference (Invest - Payoff)</span>
+                    </div>
                 </div>
 
                 <div class="results-summary">
@@ -389,6 +393,21 @@
 
                 <div class="chart-container">
                     <canvas id="comparison-chart"></canvas>
+                </div>
+
+                <div style="margin-top: 20px;">
+                    <h3>Year-by-Year Values</h3>
+                    <table class="history-table" id="comparison-table">
+                        <thead>
+                            <tr>
+                                <th>Year</th>
+                                <th>Invest</th>
+                                <th>Payoff</th>
+                                <th>Difference</th>
+                            </tr>
+                        </thead>
+                        <tbody></tbody>
+                    </table>
                 </div>
             </div>
 
