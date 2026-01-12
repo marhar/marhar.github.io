@@ -346,40 +346,39 @@ function calculate() {
  */
 function displayComparisonResults(comparison, startYear, years) {
     const investValueEl = document.getElementById('invest-value');
-    const investStatusEl = document.getElementById('invest-status');
-    const investCardEl = document.getElementById('invest-result');
-
     const payoffValueEl = document.getElementById('payoff-value');
-    const payoffStatusEl = document.getElementById('payoff-status');
-    const payoffCardEl = document.getElementById('payoff-result');
+    const conclusionEl = document.getElementById('conclusion-line');
 
     // Format currency
     const formatCurrency = (val) => '$' + Math.round(val).toLocaleString();
 
-    // Invest results
+    // Invest value
     if (comparison.invest.failed) {
-        investValueEl.textContent = '$0';
-        investStatusEl.textContent = `FAILED at month ${comparison.invest.failureMonth}`;
-        investStatusEl.className = 'status failed';
+        investValueEl.textContent = `FAILED at month ${comparison.invest.failureMonth}`;
     } else {
         investValueEl.textContent = formatCurrency(comparison.invest.finalValue);
-        investStatusEl.textContent = `After ${years} years (${startYear}-${startYear + years})`;
-        investStatusEl.className = 'status';
     }
 
-    // Payoff results
+    // Payoff value
     payoffValueEl.textContent = formatCurrency(comparison.payoff.finalValue);
-    payoffStatusEl.textContent = `After ${years} years (${startYear}-${startYear + years})`;
-    payoffStatusEl.className = 'status';
 
-    // Highlight winner
-    investCardEl.classList.remove('winner');
-    payoffCardEl.classList.remove('winner');
+    // Conclusion line
+    conclusionEl.classList.remove('invest-wins', 'payoff-wins', 'failed');
 
-    if (comparison.winner === 'invest') {
-        investCardEl.classList.add('winner');
+    if (comparison.invest.failed) {
+        conclusionEl.textContent = `Payoff wins — Invest failed (foreclosure risk)`;
+        conclusionEl.classList.add('failed');
     } else {
-        payoffCardEl.classList.add('winner');
+        const diff = Math.abs(comparison.difference);
+        const diffStr = formatCurrency(diff);
+
+        if (comparison.winner === 'invest') {
+            conclusionEl.textContent = `Invest wins by ${diffStr}`;
+            conclusionEl.classList.add('invest-wins');
+        } else {
+            conclusionEl.textContent = `Payoff wins by ${diffStr}`;
+            conclusionEl.classList.add('payoff-wins');
+        }
     }
 }
 
