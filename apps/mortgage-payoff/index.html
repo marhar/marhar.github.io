@@ -4,55 +4,45 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Mortgage Payoff Calculator</title>
+    <link rel="stylesheet" href="../app-theme.css">
     <style>
         :root {
-            --color-invest: #0077bb;      /* Blue - colorblind safe */
-            --color-payoff: #ee7733;      /* Orange - colorblind safe */
-            --color-invest-light: #c6e2f5;
-            --color-payoff-light: #fcd5bd;
-            --color-bg: #f5f5f5;
-            --color-card: #ffffff;
-            --color-text: #333333;
-            --color-text-muted: #666666;
-            --color-border: #dddddd;
-            --font-mono: 'Consolas', 'Monaco', monospace;
+            /* App-specific colors - colorblind safe */
+            --color-invest: #0077bb;
+            --color-payoff: #ee7733;
+            --color-invest-light: #e3f2fd;
+            --color-payoff-light: #fff3e0;
+            --color-card: var(--color-bg-white);
         }
 
-        * {
-            box-sizing: border-box;
-            margin: 0;
-            padding: 0;
+        @media (prefers-color-scheme: dark) {
+            :root {
+                --color-invest-light: rgba(0, 119, 187, 0.2);
+                --color-payoff-light: rgba(238, 119, 51, 0.2);
+            }
         }
 
         body {
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-            background: var(--color-bg);
-            color: var(--color-text);
             line-height: 1.6;
-            padding: 20px;
         }
 
         .container {
             max-width: 1200px;
             margin: 0 auto;
-        }
-
-        h1 {
-            font-size: 1.5rem;
-            margin-bottom: 20px;
-            text-align: center;
+            padding: 20px;
         }
 
         /* Input Section */
         .inputs {
-            background: var(--color-card);
+            background: var(--color-bg-white);
             padding: 20px;
-            border-radius: 8px;
+            border-radius: var(--border-radius);
             margin-bottom: 20px;
             display: flex;
             flex-wrap: wrap;
             gap: 20px;
             align-items: flex-end;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
         }
 
         .input-group {
@@ -68,20 +58,22 @@
 
         .input-group input, .input-group select {
             padding: 8px 12px;
-            border: 1px solid var(--color-border);
-            border-radius: 4px;
+            border: 1px solid var(--color-border-light);
+            border-radius: var(--border-radius);
             font-size: 1rem;
             width: 140px;
+            background: var(--color-bg-white);
+            color: var(--color-text);
         }
 
         .input-group input:focus, .input-group select:focus {
             outline: none;
-            border-color: var(--color-invest);
+            border-color: var(--color-primary);
         }
 
-        button {
+        .inputs button {
             padding: 8px 20px;
-            background: var(--color-invest);
+            background: var(--color-primary);
             color: white;
             border: none;
             border-radius: 4px;
@@ -97,10 +89,10 @@
         .model-description {
             background: var(--color-bg);
             padding: 12px 16px;
-            border-radius: 4px;
+            border-radius: var(--border-radius);
             margin-bottom: 20px;
             font-size: 0.875rem;
-            color: var(--color-text-muted);
+            color: var(--color-text-light);
         }
 
         /* Tabs */
@@ -112,10 +104,10 @@
 
         .tab {
             padding: 12px 24px;
-            background: var(--color-card);
-            border: 1px solid var(--color-border);
+            background: var(--color-bg-white);
+            border: 1px solid var(--color-border-light);
             border-bottom: none;
-            border-radius: 8px 8px 0 0;
+            border-radius: var(--border-radius) var(--border-radius) 0 0;
             cursor: pointer;
             font-size: 1rem;
             color: var(--color-text-muted);
@@ -123,18 +115,18 @@
         }
 
         .tab.active {
-            background: var(--color-card);
+            background: var(--color-bg-white);
             color: var(--color-text);
             font-weight: 600;
-            border-bottom: 1px solid var(--color-card);
+            border-bottom: 1px solid var(--color-bg-white);
             position: relative;
             z-index: 1;
         }
 
         .tab-content {
-            background: var(--color-card);
-            border: 1px solid var(--color-border);
-            border-radius: 0 8px 8px 8px;
+            background: var(--color-bg-white);
+            border: 1px solid var(--color-border-light);
+            border-radius: 0 var(--border-radius) var(--border-radius) var(--border-radius);
             padding: 20px;
             min-height: 400px;
         }
@@ -203,7 +195,7 @@
         .result-line.conclusion {
             margin-top: 8px;
             padding-top: 8px;
-            border-top: 1px solid var(--color-border);
+            border-top: 1px solid var(--color-border-light);
             font-weight: bold;
         }
 
@@ -216,7 +208,7 @@
         }
 
         .result-line.conclusion.failed {
-            color: #cc0000;
+            color: var(--color-danger);
         }
 
         /* Chart Container */
@@ -237,7 +229,7 @@
         .history-table th, .history-table td {
             padding: 8px 12px;
             text-align: right;
-            border-bottom: 1px solid var(--color-border);
+            border-bottom: 1px solid var(--color-border-light);
         }
 
         .history-table th {
@@ -259,7 +251,7 @@
         }
 
         .history-table .failed {
-            color: #cc0000;
+            color: var(--color-danger);
         }
 
         /* Heat Map */
@@ -305,14 +297,14 @@
         .summary-stats {
             background: var(--color-bg);
             padding: 16px;
-            border-radius: 8px;
+            border-radius: var(--border-radius);
             margin-bottom: 20px;
             font-family: var(--font-mono);
         }
 
         .summary-stats h3 {
             margin-bottom: 8px;
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            font-family: var(--font-sans);
         }
 
         /* Responsive */
@@ -336,9 +328,17 @@
     </style>
 </head>
 <body>
-    <div class="container">
-        <h1>Mortgage Payoff Calculator</h1>
+    <header class="app-header">
+        <div class="header-left">
+            <h1>Mortgage Payoff Calculator</h1>
+            <span class="subtitle">Pay off mortgage or invest?</span>
+        </div>
+        <nav>
+            <a href="https://marhar.github.io/">Home</a>
+        </nav>
+    </header>
 
+    <div class="container">
         <div class="inputs">
             <div class="input-group">
                 <label for="balance">Mortgage Balance</label>
