@@ -296,12 +296,71 @@ let comparisonChart = null;
  * Initialize the application
  */
 function init() {
+    loadFromUrlParams();
     populateYearDropdown();
+    applyYearFromUrl();
     setupTabs();
     setupCalculateButton();
+    setupExportButton();
 
     // Run initial calculation
     calculate();
+}
+
+/**
+ * Load input values from URL parameters
+ */
+function loadFromUrlParams() {
+    const params = new URLSearchParams(window.location.search);
+
+    if (params.has('balance')) {
+        document.getElementById('balance').value = params.get('balance');
+    }
+    if (params.has('rate')) {
+        document.getElementById('rate').value = params.get('rate');
+    }
+    if (params.has('term')) {
+        document.getElementById('term').value = params.get('term');
+    }
+    if (params.has('model')) {
+        document.getElementById('model').value = params.get('model');
+        updateModelDescription();
+    }
+}
+
+/**
+ * Apply year from URL after dropdown is populated
+ */
+function applyYearFromUrl() {
+    const params = new URLSearchParams(window.location.search);
+    if (params.has('year')) {
+        const yearSelect = document.getElementById('startYear');
+        const year = params.get('year');
+        if (yearSelect.querySelector(`option[value="${year}"]`)) {
+            yearSelect.value = year;
+        }
+    }
+}
+
+/**
+ * Update URL with current parameters (without page reload)
+ */
+function updateUrlParams() {
+    const balance = document.getElementById('balance').value;
+    const rate = document.getElementById('rate').value;
+    const term = document.getElementById('term').value;
+    const year = document.getElementById('startYear').value;
+    const model = document.getElementById('model').value;
+
+    const params = new URLSearchParams();
+    params.set('balance', balance);
+    params.set('rate', rate);
+    params.set('term', term);
+    params.set('year', year);
+    params.set('model', model);
+
+    const newUrl = `${window.location.pathname}?${params.toString()}`;
+    history.replaceState(null, '', newUrl);
 }
 
 /**
@@ -371,6 +430,72 @@ function setupCalculateButton() {
 }
 
 /**
+ * Setup export button
+ */
+function setupExportButton() {
+    document.getElementById('export-csv').addEventListener('click', exportResultsToCSV);
+}
+
+// Store latest comparison for export
+let lastComparison = null;
+let lastStartYear = null;
+let lastYears = null;
+
+/**
+ * Export comparison results to CSV
+ */
+function exportResultsToCSV() {
+    if (!lastComparison) {
+        alert('No results to export. Click Calculate first.');
+        return;
+    }
+
+    const balance = document.getElementById('balance').value;
+    const rate = document.getElementById('rate').value;
+    const term = document.getElementById('term').value;
+    const model = document.getElementById('model').value;
+
+    let csv = 'Mortgage Payoff Calculator Results\n';
+    csv += `Balance,$${balance}\n`;
+    csv += `Rate,${rate}%\n`;
+    csv += `Term,${term} years\n`;
+    csv += `Start Year,${lastStartYear}\n`;
+    csv += `Model,${model}\n`;
+    csv += '\n';
+    csv += 'Year,Invest Value,Payoff Value,Difference\n';
+
+    for (let year = 0; year <= lastYears; year++) {
+        const monthIndex = year * 12;
+        const investVal = lastComparison.invest.history[monthIndex]?.value || 0;
+        const payoffVal = lastComparison.payoff.history[monthIndex]?.value || 0;
+        const diff = investVal - payoffVal;
+
+        csv += `${lastStartYear + year},${Math.round(investVal)},${Math.round(payoffVal)},${Math.round(diff)}\n`;
+    }
+
+    // Add summary
+    csv += '\n';
+    csv += 'Summary\n';
+    if (lastComparison.invest.failed) {
+        csv += `Winner,Payoff (Invest failed at month ${lastComparison.invest.failureMonth})\n`;
+    } else {
+        csv += `Winner,${lastComparison.winner}\n`;
+        csv += `Difference,$${Math.round(Math.abs(lastComparison.difference))}\n`;
+    }
+
+    // Download
+    const blob = new Blob([csv], { type: 'text/csv' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `mortgage-comparison-${lastStartYear}-${model}.csv`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+}
+
+/**
  * Update the model description text
  */
 function updateModelDescription() {
@@ -394,9 +519,17 @@ function calculate() {
     const startYear = parseInt(document.getElementById('startYear').value);
     const model = document.getElementById('model').value;
 
+    // Update URL with current parameters
+    updateUrlParams();
+
     // Run single-year comparison
     const comparison = compareScenarios(balance, rate, years, startYear, model);
     if (!comparison.error) {
+        // Store for export
+        lastComparison = comparison;
+        lastStartYear = startYear;
+        lastYears = years;
+
         displayComparisonResults(comparison, startYear, years);
         renderComparisonChart(comparison, years, startYear);
     }
