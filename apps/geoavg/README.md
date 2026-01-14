@@ -23,7 +23,7 @@ A web app that calculates the geographic center (centroid) of multiple locations
 4. Watch the center point update automatically
 5. Click "Switch to Globe" for 3D visualization
 6. Click × next to a coordinate or "Delete" in a popup to remove points
-7. Click "Copy Share URL" to get a link with your current points
+7. Click "Copy URL" or "Copy Short URL" to get a shareable link
 8. Click "Clear All" to start over
 
 ## Controls
