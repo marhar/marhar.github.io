@@ -10,8 +10,10 @@ A web app that calculates the geographic center (centroid) of multiple locations
 - **Delete Points** - Remove points via the × button in the list or the Delete link in popups
 - **Geographic Center** - Calculates the true spherical centroid (red marker)
 - **Connecting Lines** - Visual lines from each point to the center
-- **Coordinates Panel** - Live list of all coordinates with lat/long
+- **Coordinates Panel** - Live list of all coordinates with lat/long; hover to highlight pins
 - **3D Globe View** - Toggle to an interactive WebGL globe with the same points and arcs
+- **Share URL** - Copy a shareable link with all points encoded in the URL
+- **URL Parameters** - Load points directly from URL for bookmarking and sharing
 
 ## Usage
 
@@ -21,7 +23,8 @@ A web app that calculates the geographic center (centroid) of multiple locations
 4. Watch the center point update automatically
 5. Click "Switch to Globe" for 3D visualization
 6. Click × next to a coordinate or "Delete" in a popup to remove points
-7. Click "Clear All" to start over
+7. Click "Copy Share URL" to get a link with your current points
+8. Click "Clear All" to start over
 
 ## Controls
 
@@ -30,8 +33,29 @@ A web app that calculates the geographic center (centroid) of multiple locations
 | Add point | Click on map/globe, or search and select |
 | Move point | Drag the marker (map view only) |
 | Delete point | Click × in coordinate list, or "Delete" in popup |
+| Highlight pin | Hover over a location in the coordinate list |
 | Toggle view | Click "Switch to Globe/Map" button |
+| Share map | Click "Copy Share URL" button |
 | Clear all | Click "Clear All" button |
+
+## URL Parameters
+
+You can share or bookmark maps by encoding points in the URL:
+
+```
+?pts=lat1,lng1;lat2,lng2;lat3,lng3
+?pts=lat1,lng1,Name1;lat2,lng2,Name2
+```
+
+**Examples:**
+```
+?pts=40.7128,-74.0060;34.0522,-118.2437
+?pts=40.7128,-74.0060,New%20York;34.0522,-118.2437,Los%20Angeles
+```
+
+- Points are separated by `;`
+- Each point is `lat,lng` or `lat,lng,name`
+- Names are URL-encoded (spaces become `%20`)
 
 ## How Center Calculation Works
 
