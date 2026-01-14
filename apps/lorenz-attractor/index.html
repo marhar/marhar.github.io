@@ -1,0 +1,941 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Lorenz Attractor</title>
+    <link rel="stylesheet" href="../app-theme.css">
+    <style>
+        :root {
+            /* High contrast colors for dark background */
+            --color-primary: #5dade2;
+            --color-secondary: #f5b041;
+            --color-accent: #e74c3c;
+            --color-success: #58d68d;
+            --color-danger: #e74c3c;
+        }
+
+        /* body base styles are in app-theme.css */
+
+        .container {
+            display: grid;
+            grid-template-columns: 280px 1fr;
+            grid-template-rows: auto 1fr;
+            gap: 15px;
+            padding: 15px;
+            max-width: 1400px;
+            margin: 0 auto;
+            min-height: 100vh;
+        }
+
+        /* Control Panel */
+        .controls {
+            background: white;
+            border-radius: var(--border-radius);
+            padding: 15px;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+            overflow-y: auto;
+            max-height: calc(100vh - 100px);
+        }
+
+        .controls h3 {
+            font-size: 14px;
+            margin-bottom: 15px;
+            padding-bottom: 10px;
+            border-bottom: 1px solid var(--color-border-light);
+            color: #000;
+        }
+
+        .control-group {
+            margin-bottom: 15px;
+        }
+
+        .control-group label {
+            display: flex;
+            justify-content: space-between;
+            font-size: 12px;
+            margin-bottom: 5px;
+            color: #000;
+        }
+
+        .control-group label span {
+            font-weight: bold;
+            color: #000;
+        }
+
+        .control-group input[type="range"] {
+            width: 100%;
+            cursor: pointer;
+        }
+
+        .button-group {
+            display: flex;
+            gap: 8px;
+            margin-bottom: 15px;
+        }
+
+        button {
+            flex: 1;
+            padding: 10px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 13px;
+            font-weight: 500;
+            transition: background 0.2s;
+        }
+
+        button.primary {
+            background: var(--color-primary);
+            color: white;
+        }
+
+        button.primary:hover {
+            background: #2980b9;
+        }
+
+        button.danger {
+            background: var(--color-accent);
+            color: white;
+        }
+
+        button.danger:hover {
+            background: #c0392b;
+        }
+
+        button.preset {
+            background: #e8e0ed;
+            color: #333;
+            font-size: 11px;
+            padding: 8px;
+        }
+
+        button.preset:hover {
+            background: #d4c4de;
+        }
+
+        .stats {
+            background: #f5f5f5;
+            border-radius: 4px;
+            padding: 10px;
+            font-size: 11px;
+            font-family: ui-monospace, monospace;
+        }
+
+        .stats div {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 4px;
+        }
+
+        .stats .label {
+            color: #000;
+        }
+
+        .stats .value {
+            color: #000;
+        }
+
+        /* Main visualization area */
+        .main {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            grid-template-rows: 1.2fr 1fr;
+            gap: 15px;
+        }
+
+        .panel {
+            background: #2a2a2a;
+            border-radius: var(--border-radius);
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.3);
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .panel-header {
+            padding: 10px 15px;
+            font-size: 13px;
+            font-weight: 600;
+            border-bottom: 1px solid #444;
+            background: #2a2a2a;
+            color: #ccc;
+        }
+
+        .panel-content {
+            flex: 1;
+            position: relative;
+        }
+
+        .panel canvas {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+        }
+
+        .attractor-panel {
+            grid-column: 1 / -1;
+        }
+
+        /* Legend */
+        .legend {
+            display: flex;
+            gap: 15px;
+            padding: 8px 15px;
+            font-size: 11px;
+            border-top: 1px solid #444;
+            background: #2a2a2a;
+            color: #ccc;
+        }
+
+        .legend-item {
+            display: flex;
+            align-items: center;
+            gap: 5px;
+        }
+
+        .legend-color {
+            width: 12px;
+            height: 3px;
+            border-radius: 2px;
+        }
+
+        .color-x { background: var(--color-primary); }
+        .color-y { background: var(--color-secondary); }
+        .color-z { background: var(--color-accent); }
+        .color-traj1 { background: var(--color-primary); }
+        .color-traj2 { background: var(--color-secondary); }
+
+        /* Responsive */
+        @media (max-width: 900px) {
+            .container {
+                grid-template-columns: 1fr;
+            }
+            .main {
+                grid-template-columns: 1fr;
+                grid-template-rows: 300px repeat(3, 200px);
+            }
+            .attractor-panel {
+                grid-column: 1;
+            }
+            .controls {
+                max-height: none;
+            }
+        }
+    </style>
+</head>
+<body>
+    <header class="app-header">
+        <div class="header-left">
+            <h1>Lorenz Attractor</h1>
+            <span class="subtitle">Strange attractor and sensitive dependence</span>
+        </div>
+        <nav>
+            <a href="https://marhar.github.io/">Home</a>
+            <a href="https://github.com/marhar/marhar.github.io/tree/master/apps/lorenz-attractor">Source</a>
+        </nav>
+    </header>
+
+    <div class="container">
+
+        <aside class="controls">
+            <h3>Parameters</h3>
+
+            <div class="control-group">
+                <label>σ (sigma) <span id="sigma-val">10.0</span></label>
+                <input type="range" id="sigma" min="1" max="20" step="0.1" value="10">
+            </div>
+
+            <div class="control-group">
+                <label>ρ (rho) <span id="rho-val">28.0</span></label>
+                <input type="range" id="rho" min="0.1" max="50" step="0.1" value="28">
+            </div>
+
+            <div class="control-group">
+                <label>β (beta) <span id="beta-val">2.67</span></label>
+                <input type="range" id="beta" min="0.1" max="10" step="0.01" value="2.67">
+            </div>
+
+            <div class="control-group">
+                <label>Initial X <span id="x0-val">1.0</span></label>
+                <input type="range" id="x0" min="-20" max="20" step="0.1" value="1">
+            </div>
+
+            <div class="control-group">
+                <label>Initial Y <span id="y0-val">1.0</span></label>
+                <input type="range" id="y0" min="-30" max="30" step="0.1" value="1">
+            </div>
+
+            <div class="control-group">
+                <label>Initial Z <span id="z0-val">1.0</span></label>
+                <input type="range" id="z0" min="0" max="50" step="0.1" value="1">
+            </div>
+
+            <div class="control-group">
+                <label>Perturbation (δ) <span id="delta-val">0.001</span></label>
+                <input type="range" id="delta" min="0.0001" max="0.1" step="0.0001" value="0.001">
+            </div>
+
+            <div class="control-group">
+                <label>Speed <span id="speed-val">1.0</span>x</label>
+                <input type="range" id="speed" min="0.1" max="5" step="0.1" value="1">
+            </div>
+
+            <div class="control-group">
+                <label>Rotation <span id="rotation-val">0</span>°</label>
+                <input type="range" id="rotation" min="0" max="360" step="1" value="0">
+            </div>
+
+            <div class="button-group">
+                <button class="primary" id="start-btn">Start</button>
+                <button class="danger" id="reset-btn">Reset</button>
+            </div>
+
+            <h3>Presets</h3>
+            <div class="button-group">
+                <button class="preset" id="preset1-btn">Classic</button>
+                <button class="preset" id="preset2-btn">Periodic</button>
+            </div>
+            <div class="button-group">
+                <button class="preset" id="preset3-btn">Transient</button>
+                <button class="preset" id="preset4-btn">High ρ</button>
+            </div>
+
+            <h3>Statistics</h3>
+            <div class="stats">
+                <div><span class="label">Time:</span> <span id="stat-time">0.00</span></div>
+                <div><span class="label">X:</span> <span id="stat-x">1.00</span></div>
+                <div><span class="label">Y:</span> <span id="stat-y">1.00</span></div>
+                <div><span class="label">Z:</span> <span id="stat-z">1.00</span></div>
+                <div><span class="label">Divergence:</span> <span id="stat-div">0.000</span></div>
+            </div>
+        </aside>
+
+        <main class="main">
+            <div class="panel attractor-panel">
+                <div class="panel-header">3D Attractor (X-Y-Z)</div>
+                <div class="panel-content">
+                    <canvas id="attractor-canvas"></canvas>
+                </div>
+                <div class="legend">
+                    <div class="legend-item"><div class="legend-color color-traj1"></div> Trajectory 1</div>
+                    <div class="legend-item"><div class="legend-color color-traj2"></div> Trajectory 2 (perturbed)</div>
+                </div>
+            </div>
+
+            <div class="panel">
+                <div class="panel-header">X, Y, Z vs Time</div>
+                <div class="panel-content">
+                    <canvas id="timeseries-canvas"></canvas>
+                </div>
+                <div class="legend">
+                    <div class="legend-item"><div class="legend-color color-x"></div> X</div>
+                    <div class="legend-item"><div class="legend-color color-y"></div> Y</div>
+                    <div class="legend-item"><div class="legend-color color-z"></div> Z</div>
+                </div>
+            </div>
+
+            <div class="panel">
+                <div class="panel-header">Phase Space (X-Z projection)</div>
+                <div class="panel-content">
+                    <canvas id="phase-canvas"></canvas>
+                </div>
+            </div>
+
+            <div class="panel">
+                <div class="panel-header">Trajectory Divergence</div>
+                <div class="panel-content">
+                    <canvas id="divergence-canvas"></canvas>
+                </div>
+                <div class="legend">
+                    <div class="legend-item"><div class="legend-color color-x"></div> log|Δr|</div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <script>
+    (function() {
+        'use strict';
+
+        // ============================================================
+        // Constants
+        // ============================================================
+
+        const DT = 0.005;  // Integration time step
+        const TRAIL_LENGTH = 2000;
+        const GRAPH_HISTORY = 500;
+
+        // Colors
+        const COLORS = {
+            primary: '#5dade2',
+            secondary: '#f5b041',
+            accent: '#e74c3c',
+            success: '#58d68d',
+            traj1: '#5dade2',
+            traj2: '#f5b041',
+            grid: '#444',
+            label: '#999',
+            canvasBg: '#2a2a2a',
+            graphBg: '#252525'
+        };
+
+        // ============================================================
+        // State
+        // ============================================================
+
+        let params = {
+            sigma: 10,
+            rho: 28,
+            beta: 8/3,
+            speed: 1
+        };
+
+        let initialState = {
+            x: 1, y: 1, z: 1
+        };
+
+        let delta = 0.001;  // Perturbation for second trajectory
+        let viewRotation = 0;
+
+        let state1 = { ...initialState };
+        let state2 = { x: initialState.x + delta, y: initialState.y, z: initialState.z };
+        let time = 0;
+        let running = false;
+        let animationId = null;
+
+        // History for visualization
+        let trail1 = [];
+        let trail2 = [];
+        let timeseriesHistory = [];
+        let divergenceHistory = [];
+
+        // ============================================================
+        // DOM Elements
+        // ============================================================
+
+        const startBtn = document.getElementById('start-btn');
+        const resetBtn = document.getElementById('reset-btn');
+
+        const attractorCanvas = document.getElementById('attractor-canvas');
+        const timeseriesCanvas = document.getElementById('timeseries-canvas');
+        const phaseCanvas = document.getElementById('phase-canvas');
+        const divergenceCanvas = document.getElementById('divergence-canvas');
+
+        const attractorCtx = attractorCanvas.getContext('2d');
+        const timeseriesCtx = timeseriesCanvas.getContext('2d');
+        const phaseCtx = phaseCanvas.getContext('2d');
+        const divergenceCtx = divergenceCanvas.getContext('2d');
+
+        // ============================================================
+        // Physics: Lorenz System
+        // ============================================================
+
+        function derivatives(s) {
+            const { sigma, rho, beta } = params;
+            return {
+                dx: sigma * (s.y - s.x),
+                dy: s.x * (rho - s.z) - s.y,
+                dz: s.x * s.y - beta * s.z
+            };
+        }
+
+        // Runge-Kutta 4th order integration
+        function rk4Step(s, dt) {
+            const k1 = derivatives(s);
+
+            const s2 = {
+                x: s.x + k1.dx * dt / 2,
+                y: s.y + k1.dy * dt / 2,
+                z: s.z + k1.dz * dt / 2
+            };
+            const k2 = derivatives(s2);
+
+            const s3 = {
+                x: s.x + k2.dx * dt / 2,
+                y: s.y + k2.dy * dt / 2,
+                z: s.z + k2.dz * dt / 2
+            };
+            const k3 = derivatives(s3);
+
+            const s4 = {
+                x: s.x + k3.dx * dt,
+                y: s.y + k3.dy * dt,
+                z: s.z + k3.dz * dt
+            };
+            const k4 = derivatives(s4);
+
+            return {
+                x: s.x + (k1.dx + 2*k2.dx + 2*k3.dx + k4.dx) * dt / 6,
+                y: s.y + (k1.dy + 2*k2.dy + 2*k3.dy + k4.dy) * dt / 6,
+                z: s.z + (k1.dz + 2*k2.dz + 2*k3.dz + k4.dz) * dt / 6
+            };
+        }
+
+        // Calculate distance between two states
+        function calculateDivergence(s1, s2) {
+            const dx = s2.x - s1.x;
+            const dy = s2.y - s1.y;
+            const dz = s2.z - s1.z;
+            return Math.sqrt(dx*dx + dy*dy + dz*dz);
+        }
+
+        // ============================================================
+        // 3D Projection
+        // ============================================================
+
+        function project3D(x, y, z, width, height, rotation) {
+            // Simple rotation around Z axis
+            const cos = Math.cos(rotation * Math.PI / 180);
+            const sin = Math.sin(rotation * Math.PI / 180);
+
+            const rx = x * cos - y * sin;
+            const ry = x * sin + y * cos;
+
+            // Isometric-style projection
+            const scale = Math.min(width, height) / 80;
+            const px = width / 2 + rx * scale;
+            const py = height / 2 - (z - 25) * scale * 0.8 + ry * scale * 0.3;
+
+            return { x: px, y: py };
+        }
+
+        // ============================================================
+        // Rendering
+        // ============================================================
+
+        function resizeCanvas(canvas) {
+            const rect = canvas.parentElement.getBoundingClientRect();
+            const dpr = window.devicePixelRatio || 1;
+            canvas.width = rect.width * dpr;
+            canvas.height = rect.height * dpr;
+            canvas.getContext('2d').scale(dpr, dpr);
+            return { width: rect.width, height: rect.height };
+        }
+
+        function resizeAllCanvases() {
+            resizeCanvas(attractorCanvas);
+            resizeCanvas(timeseriesCanvas);
+            resizeCanvas(phaseCanvas);
+            resizeCanvas(divergenceCanvas);
+            render();
+        }
+
+        function drawAttractor() {
+            const { width, height } = resizeCanvas(attractorCanvas);
+            const ctx = attractorCtx;
+
+            ctx.fillStyle = COLORS.canvasBg;
+            ctx.fillRect(0, 0, width, height);
+
+            // Draw axes
+            ctx.strokeStyle = COLORS.grid;
+            ctx.lineWidth = 1;
+            const origin = project3D(0, 0, 0, width, height, viewRotation);
+            const xAxis = project3D(20, 0, 0, width, height, viewRotation);
+            const yAxis = project3D(0, 20, 0, width, height, viewRotation);
+            const zAxis = project3D(0, 0, 20, width, height, viewRotation);
+
+            ctx.beginPath();
+            ctx.moveTo(origin.x, origin.y);
+            ctx.lineTo(xAxis.x, xAxis.y);
+            ctx.moveTo(origin.x, origin.y);
+            ctx.lineTo(yAxis.x, yAxis.y);
+            ctx.moveTo(origin.x, origin.y);
+            ctx.lineTo(zAxis.x, zAxis.y);
+            ctx.stroke();
+
+            // Labels
+            ctx.fillStyle = COLORS.label;
+            ctx.font = '12px sans-serif';
+            ctx.fillText('X', xAxis.x + 5, xAxis.y);
+            ctx.fillText('Y', yAxis.x + 5, yAxis.y);
+            ctx.fillText('Z', zAxis.x + 5, zAxis.y - 5);
+
+            // Draw trajectory 2 (behind)
+            if (trail2.length > 1) {
+                ctx.beginPath();
+                for (let i = 0; i < trail2.length; i++) {
+                    const p = project3D(trail2[i].x, trail2[i].y, trail2[i].z, width, height, viewRotation);
+                    if (i === 0) ctx.moveTo(p.x, p.y);
+                    else ctx.lineTo(p.x, p.y);
+                }
+                ctx.strokeStyle = COLORS.traj2;
+                ctx.lineWidth = 1;
+                ctx.globalAlpha = 0.6;
+                ctx.stroke();
+                ctx.globalAlpha = 1;
+            }
+
+            // Draw trajectory 1 (front)
+            if (trail1.length > 1) {
+                ctx.beginPath();
+                for (let i = 0; i < trail1.length; i++) {
+                    const p = project3D(trail1[i].x, trail1[i].y, trail1[i].z, width, height, viewRotation);
+                    if (i === 0) ctx.moveTo(p.x, p.y);
+                    else ctx.lineTo(p.x, p.y);
+                }
+                ctx.strokeStyle = COLORS.traj1;
+                ctx.lineWidth = 1.5;
+                ctx.stroke();
+            }
+
+            // Draw current positions
+            if (trail1.length > 0) {
+                const p1 = project3D(state1.x, state1.y, state1.z, width, height, viewRotation);
+                ctx.beginPath();
+                ctx.arc(p1.x, p1.y, 4, 0, Math.PI * 2);
+                ctx.fillStyle = COLORS.traj1;
+                ctx.fill();
+
+                const p2 = project3D(state2.x, state2.y, state2.z, width, height, viewRotation);
+                ctx.beginPath();
+                ctx.arc(p2.x, p2.y, 4, 0, Math.PI * 2);
+                ctx.fillStyle = COLORS.traj2;
+                ctx.fill();
+            }
+        }
+
+        function drawTimeseries() {
+            const { width, height } = resizeCanvas(timeseriesCanvas);
+            const ctx = timeseriesCtx;
+
+            ctx.fillStyle = COLORS.graphBg;
+            ctx.fillRect(0, 0, width, height);
+
+            const pad = { left: 40, right: 10, top: 10, bottom: 25 };
+            const w = width - pad.left - pad.right;
+            const h = height - pad.top - pad.bottom;
+
+            // Draw grid
+            ctx.strokeStyle = COLORS.grid;
+            ctx.lineWidth = 1;
+            for (let i = 0; i <= 4; i++) {
+                const y = pad.top + (h / 4) * i;
+                ctx.beginPath();
+                ctx.moveTo(pad.left, y);
+                ctx.lineTo(width - pad.right, y);
+                ctx.stroke();
+            }
+
+            // Y-axis labels
+            ctx.fillStyle = COLORS.label;
+            ctx.font = '10px sans-serif';
+            ctx.textAlign = 'right';
+            ctx.fillText('50', pad.left - 5, pad.top + 4);
+            ctx.fillText('0', pad.left - 5, pad.top + h / 2 + 4);
+            ctx.fillText('-50', pad.left - 5, pad.top + h + 4);
+
+            if (timeseriesHistory.length < 2) return;
+
+            function drawLine(key, color) {
+                ctx.beginPath();
+                for (let i = 0; i < timeseriesHistory.length; i++) {
+                    const xPos = pad.left + (i / GRAPH_HISTORY) * w;
+                    const yPos = pad.top + h / 2 - (timeseriesHistory[i][key] / 50) * (h / 2);
+                    if (i === 0) ctx.moveTo(xPos, yPos);
+                    else ctx.lineTo(xPos, yPos);
+                }
+                ctx.strokeStyle = color;
+                ctx.lineWidth = 1.5;
+                ctx.stroke();
+            }
+
+            drawLine('x', COLORS.primary);
+            drawLine('y', COLORS.secondary);
+            drawLine('z', COLORS.accent);
+        }
+
+        function drawPhase() {
+            const { width, height } = resizeCanvas(phaseCanvas);
+            const ctx = phaseCtx;
+
+            ctx.fillStyle = COLORS.graphBg;
+            ctx.fillRect(0, 0, width, height);
+
+            const pad = 30;
+            const w = width - pad * 2;
+            const h = height - pad * 2;
+            const cx = width / 2;
+            const cy = height / 2;
+
+            // Draw axes
+            ctx.strokeStyle = COLORS.grid;
+            ctx.lineWidth = 1;
+            ctx.beginPath();
+            ctx.moveTo(pad, cy);
+            ctx.lineTo(width - pad, cy);
+            ctx.moveTo(cx, pad);
+            ctx.lineTo(cx, height - pad);
+            ctx.stroke();
+
+            // Labels
+            ctx.fillStyle = COLORS.label;
+            ctx.font = '10px sans-serif';
+            ctx.textAlign = 'center';
+            ctx.fillText('X', width - 15, cy + 15);
+            ctx.fillText('Z', cx + 15, 15);
+
+            const scaleX = w / 60;
+            const scaleZ = h / 60;
+
+            // Draw X-Z phase portrait
+            if (trail1.length > 1) {
+                ctx.beginPath();
+                for (let i = 0; i < trail1.length; i++) {
+                    const x = cx + trail1[i].x * scaleX;
+                    const y = cy - (trail1[i].z - 25) * scaleZ;
+                    if (i === 0) ctx.moveTo(x, y);
+                    else ctx.lineTo(x, y);
+                }
+                ctx.strokeStyle = COLORS.primary;
+                ctx.lineWidth = 1;
+                ctx.stroke();
+            }
+        }
+
+        function drawDivergence() {
+            const { width, height } = resizeCanvas(divergenceCanvas);
+            const ctx = divergenceCtx;
+
+            ctx.fillStyle = COLORS.graphBg;
+            ctx.fillRect(0, 0, width, height);
+
+            const pad = { left: 45, right: 10, top: 10, bottom: 25 };
+            const w = width - pad.left - pad.right;
+            const h = height - pad.top - pad.bottom;
+
+            // Draw grid
+            ctx.strokeStyle = COLORS.grid;
+            ctx.lineWidth = 1;
+            for (let i = 0; i <= 4; i++) {
+                const y = pad.top + (h / 4) * i;
+                ctx.beginPath();
+                ctx.moveTo(pad.left, y);
+                ctx.lineTo(width - pad.right, y);
+                ctx.stroke();
+            }
+
+            if (divergenceHistory.length < 2) return;
+
+            // Find range
+            let minLog = Infinity, maxLog = -Infinity;
+            for (const d of divergenceHistory) {
+                const logD = Math.log10(Math.max(d, 1e-10));
+                minLog = Math.min(minLog, logD);
+                maxLog = Math.max(maxLog, logD);
+            }
+
+            // Round to nice values
+            minLog = Math.floor(minLog);
+            maxLog = Math.ceil(maxLog);
+            if (maxLog <= minLog) maxLog = minLog + 1;
+
+            // Y-axis labels
+            ctx.fillStyle = COLORS.label;
+            ctx.font = '10px sans-serif';
+            ctx.textAlign = 'right';
+            ctx.fillText(`10^${maxLog}`, pad.left - 5, pad.top + 4);
+            ctx.fillText(`10^${minLog}`, pad.left - 5, pad.top + h + 4);
+
+            // Draw divergence
+            ctx.beginPath();
+            for (let i = 0; i < divergenceHistory.length; i++) {
+                const logD = Math.log10(Math.max(divergenceHistory[i], 1e-10));
+                const xPos = pad.left + (i / GRAPH_HISTORY) * w;
+                const yPos = pad.top + h - ((logD - minLog) / (maxLog - minLog)) * h;
+                if (i === 0) ctx.moveTo(xPos, yPos);
+                else ctx.lineTo(xPos, yPos);
+            }
+            ctx.strokeStyle = COLORS.primary;
+            ctx.lineWidth = 1.5;
+            ctx.stroke();
+        }
+
+        function updateStats() {
+            const div = calculateDivergence(state1, state2);
+
+            document.getElementById('stat-time').textContent = time.toFixed(2);
+            document.getElementById('stat-x').textContent = state1.x.toFixed(2);
+            document.getElementById('stat-y').textContent = state1.y.toFixed(2);
+            document.getElementById('stat-z').textContent = state1.z.toFixed(2);
+            document.getElementById('stat-div').textContent = div.toFixed(4);
+        }
+
+        function render() {
+            drawAttractor();
+            drawTimeseries();
+            drawPhase();
+            drawDivergence();
+            updateStats();
+        }
+
+        // ============================================================
+        // Simulation Loop
+        // ============================================================
+
+        function step() {
+            const stepsPerFrame = Math.round(16 * params.speed / (DT * 1000));
+
+            for (let i = 0; i < stepsPerFrame; i++) {
+                state1 = rk4Step(state1, DT);
+                state2 = rk4Step(state2, DT);
+                time += DT;
+            }
+
+            // Update trails
+            trail1.push({ x: state1.x, y: state1.y, z: state1.z });
+            if (trail1.length > TRAIL_LENGTH) trail1.shift();
+
+            trail2.push({ x: state2.x, y: state2.y, z: state2.z });
+            if (trail2.length > TRAIL_LENGTH) trail2.shift();
+
+            // Update history
+            timeseriesHistory.push({ x: state1.x, y: state1.y, z: state1.z });
+            if (timeseriesHistory.length > GRAPH_HISTORY) timeseriesHistory.shift();
+
+            divergenceHistory.push(calculateDivergence(state1, state2));
+            if (divergenceHistory.length > GRAPH_HISTORY) divergenceHistory.shift();
+
+            render();
+
+            if (running) {
+                animationId = requestAnimationFrame(step);
+            }
+        }
+
+        function start() {
+            if (!running) {
+                running = true;
+                startBtn.textContent = 'Pause';
+                step();
+            } else {
+                running = false;
+                startBtn.textContent = 'Start';
+                if (animationId) {
+                    cancelAnimationFrame(animationId);
+                }
+            }
+        }
+
+        function reset() {
+            running = false;
+            startBtn.textContent = 'Start';
+            if (animationId) {
+                cancelAnimationFrame(animationId);
+            }
+
+            state1 = { ...initialState };
+            state2 = { x: initialState.x + delta, y: initialState.y, z: initialState.z };
+            time = 0;
+            trail1 = [];
+            trail2 = [];
+            timeseriesHistory = [];
+            divergenceHistory = [];
+
+            render();
+        }
+
+        // ============================================================
+        // Controls
+        // ============================================================
+
+        function setupSlider(id, target, key, displayId, format = v => v.toFixed(1)) {
+            const slider = document.getElementById(id);
+            const display = document.getElementById(displayId);
+
+            slider.addEventListener('input', () => {
+                const value = parseFloat(slider.value);
+                display.textContent = format(value);
+
+                if (target === 'params') {
+                    params[key] = value;
+                } else if (target === 'initial') {
+                    initialState[key] = value;
+                    if (!running) {
+                        state1[key] = value;
+                        state2 = { x: initialState.x + delta, y: initialState.y, z: initialState.z };
+                        render();
+                    }
+                } else if (target === 'delta') {
+                    delta = value;
+                    if (!running) {
+                        state2 = { x: initialState.x + delta, y: initialState.y, z: initialState.z };
+                        render();
+                    }
+                } else if (target === 'view') {
+                    viewRotation = value;
+                    render();
+                }
+            });
+        }
+
+        setupSlider('sigma', 'params', 'sigma', 'sigma-val');
+        setupSlider('rho', 'params', 'rho', 'rho-val');
+        setupSlider('beta', 'params', 'beta', 'beta-val', v => v.toFixed(2));
+        setupSlider('x0', 'initial', 'x', 'x0-val');
+        setupSlider('y0', 'initial', 'y', 'y0-val');
+        setupSlider('z0', 'initial', 'z', 'z0-val');
+        setupSlider('delta', 'delta', null, 'delta-val', v => v.toFixed(4));
+        setupSlider('speed', 'params', 'speed', 'speed-val');
+        setupSlider('rotation', 'view', null, 'rotation-val', v => v.toFixed(0));
+
+        startBtn.addEventListener('click', start);
+        resetBtn.addEventListener('click', reset);
+
+        // Preset functions
+        function applyPreset(sigma, rho, beta, x, y, z) {
+            // Update params
+            params.sigma = sigma;
+            params.rho = rho;
+            params.beta = beta;
+
+            // Update sliders
+            document.getElementById('sigma').value = sigma;
+            document.getElementById('rho').value = rho;
+            document.getElementById('beta').value = beta;
+            document.getElementById('x0').value = x;
+            document.getElementById('y0').value = y;
+            document.getElementById('z0').value = z;
+
+            // Update displays
+            document.getElementById('sigma-val').textContent = sigma.toFixed(1);
+            document.getElementById('rho-val').textContent = rho.toFixed(1);
+            document.getElementById('beta-val').textContent = beta.toFixed(2);
+            document.getElementById('x0-val').textContent = x.toFixed(1);
+            document.getElementById('y0-val').textContent = y.toFixed(1);
+            document.getElementById('z0-val').textContent = z.toFixed(1);
+
+            // Update initial state
+            initialState = { x, y, z };
+
+            reset();
+        }
+
+        document.getElementById('preset1-btn').addEventListener('click', () => {
+            applyPreset(10, 28, 8/3, 1, 1, 1);  // Classic Lorenz
+        });
+
+        document.getElementById('preset2-btn').addEventListener('click', () => {
+            applyPreset(10, 13, 8/3, 1, 1, 1);  // Periodic orbit
+        });
+
+        document.getElementById('preset3-btn').addEventListener('click', () => {
+            applyPreset(10, 28, 8/3, 0.1, 0, 0);  // Long transient
+        });
+
+        document.getElementById('preset4-btn').addEventListener('click', () => {
+            applyPreset(10, 45, 8/3, 1, 1, 1);  // High rho
+        });
+
+        window.addEventListener('resize', resizeAllCanvases);
+
+        // Initial render
+        resizeAllCanvases();
+
+    })();
+    </script>
+</body>
+</html>
