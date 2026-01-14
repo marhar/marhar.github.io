@@ -82,6 +82,14 @@
             background: var(--color-primary-dark);
         }
 
+        .controls button#share-btn {
+            background: var(--color-success);
+        }
+
+        .controls button#share-btn:hover {
+            background: var(--color-success-light);
+        }
+
         #point-count {
             font-weight: bold;
             color: var(--color-primary);
@@ -271,6 +279,7 @@
         <p>Points: <span id="point-count">0</span></p>
 
         <button class="toggle-view" id="toggle-view-btn">Switch to Globe</button>
+        <button id="share-btn">Copy Share URL</button>
         <button id="clear-btn">Clear All</button>
 
         <div id="coord-list"></div>
@@ -310,6 +319,7 @@
         const mapEl = document.getElementById('map');
         const globeEl = document.getElementById('globe');
         const toggleViewBtn = document.getElementById('toggle-view-btn');
+        const shareBtn = document.getElementById('share-btn');
         const clearBtn = document.getElementById('clear-btn');
         const searchInput = document.getElementById('search-input');
         const searchResults = document.getElementById('search-results');
@@ -373,6 +383,65 @@
             if (index >= 0 && index < markers.length) {
                 const el = markers[index].getElement();
                 if (el) el.classList.remove('marker-highlight');
+            }
+        }
+
+        // ============================================================
+        // URL Parameter Handling
+        // ============================================================
+
+        function generateShareUrl() {
+            if (locations.length === 0) return window.location.origin + window.location.pathname;
+
+            const pts = locations.map(loc => {
+                const lat = formatCoord(loc.lat);
+                const lng = formatCoord(loc.lng);
+                if (loc.name) {
+                    return `${lat},${lng},${encodeURIComponent(loc.name)}`;
+                }
+                return `${lat},${lng}`;
+            }).join(';');
+
+            return window.location.origin + window.location.pathname + '?pts=' + pts;
+        }
+
+        function copyShareUrl() {
+            const url = generateShareUrl();
+            navigator.clipboard.writeText(url).then(() => {
+                const originalText = shareBtn.textContent;
+                shareBtn.textContent = 'Copied!';
+                setTimeout(() => {
+                    shareBtn.textContent = originalText;
+                }, 1500);
+            }).catch(err => {
+                console.error('Failed to copy URL:', err);
+                prompt('Copy this URL:', url);
+            });
+        }
+
+        function loadPointsFromUrl() {
+            const params = new URLSearchParams(window.location.search);
+            const pts = params.get('pts');
+            if (!pts) return;
+
+            const pointStrings = pts.split(';');
+            for (const pointStr of pointStrings) {
+                const parts = pointStr.split(',');
+                if (parts.length >= 2) {
+                    const lat = parseFloat(parts[0]);
+                    const lng = parseFloat(parts[1]);
+                    const name = parts.length > 2 ? decodeURIComponent(parts.slice(2).join(',')) : undefined;
+
+                    if (!isNaN(lat) && !isNaN(lng)) {
+                        addPoint(lat, lng, name);
+                    }
+                }
+            }
+
+            // Fit map to show all points
+            if (locations.length > 0) {
+                const bounds = L.latLngBounds(locations.map(loc => [loc.lat, loc.lng]));
+                map.fitBounds(bounds, { padding: [50, 50] });
             }
         }
 
@@ -752,8 +821,12 @@
 
         map.on('click', (e) => addPoint(e.latlng.lat, e.latlng.lng));
         toggleViewBtn.addEventListener('click', toggleView);
+        shareBtn.addEventListener('click', copyShareUrl);
         clearBtn.addEventListener('click', clearAll);
         searchInput.addEventListener('input', handleSearchInput);
+
+        // Load points from URL parameters on page load
+        loadPointsFromUrl();
 
     })();
     </script>
