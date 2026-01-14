@@ -37,7 +37,7 @@
             top: 10px;
             right: 10px;
             z-index: 1000;
-            background: white;
+            background: var(--color-bg-white);
             padding: 15px;
             border-radius: var(--border-radius);
             box-shadow: 0 2px 10px rgba(0, 0, 0, 0.2);
@@ -95,6 +95,14 @@
             box-shadow: 0 2px 5px rgba(0, 0, 0, 0.3);
         }
 
+        /* Highlighted marker */
+        .marker-highlight {
+            filter: drop-shadow(0 0 8px #ff0000) drop-shadow(0 0 16px #ff0000) brightness(1.1);
+            transform: scale(1.4);
+            transform-origin: bottom center;
+            z-index: 10000 !important;
+        }
+
         /* Search */
         .search-container {
             margin-bottom: 15px;
@@ -105,10 +113,12 @@
         .search-container input {
             width: 100%;
             padding: 8px 10px;
-            border: 1px solid #ddd;
+            border: 1px solid var(--color-border-light);
             border-radius: 4px;
             font-size: 14px;
             margin-bottom: 8px;
+            background: var(--color-bg);
+            color: var(--color-text);
         }
 
         .search-container input:focus {
@@ -132,7 +142,7 @@
         }
 
         .search-result:hover {
-            background: #e3f2fd;
+            background: var(--color-border-light);
         }
 
         .search-status {
@@ -156,7 +166,7 @@
 
         .coord-item {
             display: flex;
-            align-items: center;
+            align-items: flex-start;
             justify-content: space-between;
             font-size: 12px;
             font-family: var(--font-mono);
@@ -164,19 +174,29 @@
             margin-bottom: 4px;
             background: var(--color-bg);
             border-radius: 4px;
-            color: #555;
+            color: var(--color-text);
+        }
+
+        .coord-item:not(.center):hover {
+            background: var(--color-border-light);
+            cursor: pointer;
         }
 
         .coord-item.center {
-            background: #ffeaea;
+            background: var(--color-bg);
+            border: 1px solid var(--color-danger);
             color: var(--color-danger);
             font-weight: bold;
         }
 
         .coord-info {
             flex: 1;
-            overflow: hidden;
-            text-overflow: ellipsis;
+            min-width: 0;
+        }
+
+        .coord-value {
+            display: block;
+            color: var(--color-text-light);
         }
 
         .coord-label {
@@ -188,21 +208,20 @@
             color: var(--color-danger);
         }
 
-        .delete-btn {
-            background: none;
-            border: none;
-            color: #999;
-            cursor: pointer;
-            font-size: 16px;
-            padding: 0 5px;
-            margin: 0;
-            width: auto;
-            line-height: 1;
+        .coord-item.center .coord-value {
+            color: var(--color-danger);
         }
 
-        .delete-btn:hover {
+        .delete-x {
+            color: var(--color-text-muted);
+            cursor: pointer;
+            font-size: 11px;
+            line-height: 1;
+            margin-left: 6px;
+        }
+
+        .delete-x:hover {
             color: var(--color-danger);
-            background: none;
         }
 
         /* Popup delete link */
@@ -341,6 +360,20 @@
                    `Lat: ${formatCoord(loc.lat)}<br>` +
                    `Lng: ${formatCoord(loc.lng)}<br>` +
                    `<a href="#" class="popup-delete" onclick="window.deletePoint(${index}); return false;">Delete</a>`;
+        }
+
+        function highlightMarker(index) {
+            if (index >= 0 && index < markers.length) {
+                const el = markers[index].getElement();
+                if (el) el.classList.add('marker-highlight');
+            }
+        }
+
+        function unhighlightMarker(index) {
+            if (index >= 0 && index < markers.length) {
+                const el = markers[index].getElement();
+                if (el) el.classList.remove('marker-highlight');
+            }
         }
 
         // ============================================================
@@ -533,12 +566,12 @@
                 const loc = locations[i];
                 const label = getPointLabel(loc, i);
                 html += `
-                    <div class="coord-item">
+                    <div class="coord-item" data-index="${i}">
                         <span class="coord-info">
-                            <span class="coord-label">${label}:</span>
-                            ${formatCoord(loc.lat)}, ${formatCoord(loc.lng)}
+                            <span class="coord-label">${label}</span>
+                            <span class="coord-value">${formatCoord(loc.lat)}, ${formatCoord(loc.lng)}</span>
                         </span>
-                        <button class="delete-btn" data-index="${i}" title="Delete point">&times;</button>
+                        <span class="delete-x" title="Delete">x</span>
                     </div>`;
             }
 
@@ -546,20 +579,22 @@
                 html += `
                     <div class="coord-item center">
                         <span class="coord-info">
-                            <span class="coord-label">Center:</span>
-                            ${formatCoord(center.lat)}, ${formatCoord(center.lng)}
+                            <span class="coord-label">Center</span>
+                            <span class="coord-value">${formatCoord(center.lat)}, ${formatCoord(center.lng)}</span>
                         </span>
                     </div>`;
             }
 
             coordListEl.innerHTML = html;
 
-            // Attach delete handlers
-            coordListEl.querySelectorAll('.delete-btn').forEach(btn => {
-                btn.addEventListener('click', (e) => {
-                    const index = parseInt(e.target.dataset.index, 10);
-                    deletePoint(index);
-                });
+            // Attach event handlers to coord items
+            coordListEl.querySelectorAll('.coord-item:not(.center)').forEach(item => {
+                const index = parseInt(item.dataset.index, 10);
+
+                item.addEventListener('mouseenter', () => highlightMarker(index));
+                item.addEventListener('mouseleave', () => unhighlightMarker(index));
+
+                item.querySelector('.delete-x').addEventListener('click', () => deletePoint(index));
             });
         }
 
