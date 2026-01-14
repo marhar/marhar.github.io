@@ -98,6 +98,22 @@ python3 -m http.server 8000
 # Then open http://localhost:8000
 ```
 
+## Testing
+
+Run the test suite:
+
+```bash
+node run_tests.js
+```
+
+Or open `test-runner.html` in a browser for interactive results.
+
+**Test coverage:**
+- Geohash encoding/decoding (6 tests)
+- Geographic center calculation (5 tests)
+- URL parameter parsing/generation (7 tests)
+- Coordinate formatting (2 tests)
+
 ## Browser Support
 
 Works in all modern browsers (Chrome, Firefox, Safari, Edge). Requires WebGL for globe view.
