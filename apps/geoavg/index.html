@@ -82,11 +82,13 @@
             background: var(--color-primary-dark);
         }
 
-        .controls button#share-btn {
+        .controls button#share-btn,
+        .controls button#share-short-btn {
             background: var(--color-success);
         }
 
-        .controls button#share-btn:hover {
+        .controls button#share-btn:hover,
+        .controls button#share-short-btn:hover {
             background: var(--color-success-light);
         }
 
@@ -279,7 +281,8 @@
         <p>Points: <span id="point-count">0</span></p>
 
         <button class="toggle-view" id="toggle-view-btn">Switch to Globe</button>
-        <button id="share-btn">Copy Share URL</button>
+        <button id="share-btn">Copy URL</button>
+        <button id="share-short-btn">Copy Short URL</button>
         <button id="clear-btn">Clear All</button>
 
         <div id="coord-list"></div>
@@ -320,6 +323,7 @@
         const globeEl = document.getElementById('globe');
         const toggleViewBtn = document.getElementById('toggle-view-btn');
         const shareBtn = document.getElementById('share-btn');
+        const shareShortBtn = document.getElementById('share-short-btn');
         const clearBtn = document.getElementById('clear-btn');
         const searchInput = document.getElementById('search-input');
         const searchResults = document.getElementById('search-results');
@@ -387,31 +391,116 @@
         }
 
         // ============================================================
+        // Geohash Encoding/Decoding
+        // ============================================================
+
+        const GEOHASH_CHARS = '0123456789bcdefghjkmnpqrstuvwxyz';
+        const GEOHASH_PRECISION = 9; // ~5m accuracy
+
+        function encodeGeohash(lat, lng) {
+            let latMin = -90, latMax = 90;
+            let lngMin = -180, lngMax = 180;
+            let hash = '';
+            let bit = 0;
+            let ch = 0;
+            let isLng = true;
+
+            while (hash.length < GEOHASH_PRECISION) {
+                if (isLng) {
+                    const mid = (lngMin + lngMax) / 2;
+                    if (lng >= mid) {
+                        ch |= (1 << (4 - bit));
+                        lngMin = mid;
+                    } else {
+                        lngMax = mid;
+                    }
+                } else {
+                    const mid = (latMin + latMax) / 2;
+                    if (lat >= mid) {
+                        ch |= (1 << (4 - bit));
+                        latMin = mid;
+                    } else {
+                        latMax = mid;
+                    }
+                }
+                isLng = !isLng;
+                bit++;
+                if (bit === 5) {
+                    hash += GEOHASH_CHARS[ch];
+                    bit = 0;
+                    ch = 0;
+                }
+            }
+            return hash;
+        }
+
+        function decodeGeohash(hash) {
+            let latMin = -90, latMax = 90;
+            let lngMin = -180, lngMax = 180;
+            let isLng = true;
+
+            for (const c of hash.toLowerCase()) {
+                const idx = GEOHASH_CHARS.indexOf(c);
+                if (idx === -1) continue;
+
+                for (let bit = 4; bit >= 0; bit--) {
+                    if (isLng) {
+                        const mid = (lngMin + lngMax) / 2;
+                        if (idx & (1 << bit)) {
+                            lngMin = mid;
+                        } else {
+                            lngMax = mid;
+                        }
+                    } else {
+                        const mid = (latMin + latMax) / 2;
+                        if (idx & (1 << bit)) {
+                            latMin = mid;
+                        } else {
+                            latMax = mid;
+                        }
+                    }
+                    isLng = !isLng;
+                }
+            }
+            return {
+                lat: (latMin + latMax) / 2,
+                lng: (lngMin + lngMax) / 2
+            };
+        }
+
+        // ============================================================
         // URL Parameter Handling
         // ============================================================
 
-        function generateShareUrl() {
+        function generateShareUrl(useGeohash = false) {
             if (locations.length === 0) return window.location.origin + window.location.pathname;
 
-            const pts = locations.map(loc => {
-                const lat = formatCoord(loc.lat);
-                const lng = formatCoord(loc.lng);
-                if (loc.name) {
-                    return `${lat},${lng},${encodeURIComponent(loc.name)}`;
-                }
-                return `${lat},${lng}`;
-            }).join(';');
-
-            return window.location.origin + window.location.pathname + '?pts=' + pts;
+            if (useGeohash) {
+                // Compact geohash format (no names)
+                const geo = locations.map(loc => encodeGeohash(loc.lat, loc.lng)).join('');
+                return window.location.origin + window.location.pathname + '?geo=' + geo;
+            } else {
+                // Full format with optional names
+                const pts = locations.map(loc => {
+                    const lat = formatCoord(loc.lat);
+                    const lng = formatCoord(loc.lng);
+                    if (loc.name) {
+                        return `${lat},${lng},${encodeURIComponent(loc.name)}`;
+                    }
+                    return `${lat},${lng}`;
+                }).join(';');
+                return window.location.origin + window.location.pathname + '?pts=' + pts;
+            }
         }
 
-        function copyShareUrl() {
-            const url = generateShareUrl();
+        function copyShareUrl(useGeohash = false) {
+            const url = generateShareUrl(useGeohash);
+            const btn = useGeohash ? shareShortBtn : shareBtn;
             navigator.clipboard.writeText(url).then(() => {
-                const originalText = shareBtn.textContent;
-                shareBtn.textContent = 'Copied!';
+                const originalText = btn.textContent;
+                btn.textContent = 'Copied!';
                 setTimeout(() => {
-                    shareBtn.textContent = originalText;
+                    btn.textContent = originalText;
                 }, 1500);
             }).catch(err => {
                 console.error('Failed to copy URL:', err);
@@ -421,19 +510,34 @@
 
         function loadPointsFromUrl() {
             const params = new URLSearchParams(window.location.search);
+
+            // Try geohash format first
+            const geo = params.get('geo');
+            if (geo) {
+                // Each geohash is GEOHASH_PRECISION chars
+                for (let i = 0; i < geo.length; i += GEOHASH_PRECISION) {
+                    const hash = geo.slice(i, i + GEOHASH_PRECISION);
+                    if (hash.length === GEOHASH_PRECISION) {
+                        const { lat, lng } = decodeGeohash(hash);
+                        addPoint(lat, lng);
+                    }
+                }
+            }
+
+            // Try pts format
             const pts = params.get('pts');
-            if (!pts) return;
+            if (pts) {
+                const pointStrings = pts.split(';');
+                for (const pointStr of pointStrings) {
+                    const parts = pointStr.split(',');
+                    if (parts.length >= 2) {
+                        const lat = parseFloat(parts[0]);
+                        const lng = parseFloat(parts[1]);
+                        const name = parts.length > 2 ? decodeURIComponent(parts.slice(2).join(',')) : undefined;
 
-            const pointStrings = pts.split(';');
-            for (const pointStr of pointStrings) {
-                const parts = pointStr.split(',');
-                if (parts.length >= 2) {
-                    const lat = parseFloat(parts[0]);
-                    const lng = parseFloat(parts[1]);
-                    const name = parts.length > 2 ? decodeURIComponent(parts.slice(2).join(',')) : undefined;
-
-                    if (!isNaN(lat) && !isNaN(lng)) {
-                        addPoint(lat, lng, name);
+                        if (!isNaN(lat) && !isNaN(lng)) {
+                            addPoint(lat, lng, name);
+                        }
                     }
                 }
             }
@@ -821,7 +925,8 @@
 
         map.on('click', (e) => addPoint(e.latlng.lat, e.latlng.lng));
         toggleViewBtn.addEventListener('click', toggleView);
-        shareBtn.addEventListener('click', copyShareUrl);
+        shareBtn.addEventListener('click', () => copyShareUrl(false));
+        shareShortBtn.addEventListener('click', () => copyShareUrl(true));
         clearBtn.addEventListener('click', clearAll);
         searchInput.addEventListener('input', handleSearchInput);
 

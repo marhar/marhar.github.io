@@ -35,15 +35,17 @@ A web app that calculates the geographic center (centroid) of multiple locations
 | Delete point | Click × in coordinate list, or "Delete" in popup |
 | Highlight pin | Hover over a location in the coordinate list |
 | Toggle view | Click "Switch to Globe/Map" button |
-| Share map | Click "Copy Share URL" button |
+| Share map | Click "Copy URL" (full) or "Copy Short URL" (compact) |
 | Clear all | Click "Clear All" button |
 
 ## URL Parameters
 
-You can share or bookmark maps by encoding points in the URL:
+Two URL formats are supported:
 
+### Full Format (`?pts=`)
+Preserves location names, human-readable coordinates:
 ```
-?pts=lat1,lng1;lat2,lng2;lat3,lng3
+?pts=lat1,lng1;lat2,lng2
 ?pts=lat1,lng1,Name1;lat2,lng2,Name2
 ```
 
@@ -53,9 +55,18 @@ You can share or bookmark maps by encoding points in the URL:
 ?pts=40.7128,-74.0060,New%20York;34.0522,-118.2437,Los%20Angeles
 ```
 
-- Points are separated by `;`
-- Each point is `lat,lng` or `lat,lng,name`
-- Names are URL-encoded (spaces become `%20`)
+### Short Format (`?geo=`)
+Compact geohash encoding (~50% shorter), no names:
+```
+?geo=dr5regw3p9q5ctr18
+```
+
+Each location is encoded as a 9-character geohash (~5m precision), concatenated together.
+
+| Format | NYC + LA Example | Length |
+|--------|------------------|--------|
+| Full | `?pts=40.7128,-74.0060,New%20York;34.0522,-118.2437,Los%20Angeles` | 75 chars |
+| Short | `?geo=dr5regw3p9q5ctr18` | 22 chars |
 
 ## How Center Calculation Works
 
