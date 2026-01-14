@@ -27,8 +27,8 @@ Where:
 
 ## Presets
 
-- **Classic** - σ=10, ρ=28, β=8/3 (Lorenz's original parameters)
-- **Periodic** - ρ=13 produces periodic orbits instead of chaos
+- **Classic** - σ=10, ρ=28, β=8/3 (Lorenz's original parameters, chaotic)
+- **Periodic** - ρ=160 produces a period-2 limit cycle (alternating loops)
 - **Transient** - Start near origin to see long transient before settling onto attractor
 - **High ρ** - ρ=45 shows different attractor structure
 

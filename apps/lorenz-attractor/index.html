@@ -250,7 +250,7 @@
 
             <div class="control-group">
                 <label>ρ (rho) <span id="rho-val">28.0</span></label>
-                <input type="range" id="rho" min="0.1" max="50" step="0.1" value="28">
+                <input type="range" id="rho" min="0.1" max="200" step="0.1" value="28">
             </div>
 
             <div class="control-group">
@@ -919,7 +919,7 @@
         });
 
         document.getElementById('preset2-btn').addEventListener('click', () => {
-            applyPreset(10, 13, 8/3, 1, 1, 1);  // Periodic orbit
+            applyPreset(10, 160, 8/3, 1, 1, 1);  // Period-2 limit cycle
         });
 
         document.getElementById('preset3-btn').addEventListener('click', () => {
