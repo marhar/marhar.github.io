@@ -1,0 +1,607 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>DuckDB Astronaut Explorer</title>
+    <link rel="stylesheet" href="../app-theme.css">
+    <style>
+        :root {
+            --font-mono: ui-monospace, SFMono-Regular, 'SF Mono', Menlo, monospace;
+        }
+
+        .container {
+            display: flex;
+            flex-direction: column;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+            gap: 20px;
+        }
+
+        .query-panel {
+            background: var(--color-bg-white);
+            border-radius: var(--border-radius);
+            padding: 20px;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+        }
+
+        .query-panel h3 {
+            font-size: 14px;
+            color: var(--color-text);
+            margin-bottom: 15px;
+            padding-bottom: 10px;
+            border-bottom: 1px solid var(--color-border-light);
+        }
+
+        #sql-input {
+            width: 100%;
+            height: 120px;
+            font-family: var(--font-mono);
+            font-size: 14px;
+            padding: 12px;
+            border: 1px solid var(--color-border-light);
+            border-radius: var(--border-radius);
+            background: var(--color-bg);
+            color: var(--color-text);
+            resize: vertical;
+        }
+
+        #sql-input:focus {
+            outline: none;
+            border-color: var(--color-primary);
+        }
+
+        .button-row {
+            display: flex;
+            gap: 10px;
+            margin-top: 15px;
+            flex-wrap: wrap;
+            align-items: center;
+        }
+
+        button {
+            padding: 10px 20px;
+            font-size: 14px;
+        }
+
+        .preset-queries {
+            display: flex;
+            gap: 8px;
+            flex-wrap: wrap;
+            margin-left: auto;
+        }
+
+        .preset-queries button {
+            padding: 6px 12px;
+            font-size: 12px;
+            background: var(--color-bg);
+            color: var(--color-text);
+            border: 1px solid var(--color-border-light);
+        }
+
+        .preset-queries button:hover {
+            background: var(--color-primary);
+            color: white;
+            border-color: var(--color-primary);
+        }
+
+        .results-panel {
+            background: var(--color-bg-white);
+            border-radius: var(--border-radius);
+            padding: 20px;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+            overflow: hidden;
+        }
+
+        .results-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 15px;
+            padding-bottom: 10px;
+            border-bottom: 1px solid var(--color-border-light);
+        }
+
+        .results-header h3 {
+            font-size: 14px;
+            color: var(--color-text);
+            margin: 0;
+        }
+
+        .results-info {
+            font-size: 12px;
+            color: var(--color-text-light);
+        }
+
+        .table-container {
+            overflow-x: auto;
+            max-height: 400px;
+            overflow-y: auto;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 13px;
+        }
+
+        th, td {
+            text-align: left;
+            padding: 10px 12px;
+            border-bottom: 1px solid var(--color-border-light);
+        }
+
+        th {
+            background: var(--color-bg);
+            font-weight: 600;
+            position: sticky;
+            top: 0;
+            z-index: 1;
+        }
+
+        tr:hover td {
+            background: var(--color-bg);
+        }
+
+        td {
+            font-family: var(--font-mono);
+            font-size: 12px;
+        }
+
+        .status {
+            padding: 15px;
+            border-radius: var(--border-radius);
+            font-size: 14px;
+        }
+
+        .status.loading {
+            background: #e3f2fd;
+            color: #1565c0;
+        }
+
+        .status.error {
+            background: #ffebee;
+            color: #c62828;
+        }
+
+        .status.success {
+            background: #e8f5e9;
+            color: #2e7d32;
+        }
+
+        @media (prefers-color-scheme: dark) {
+            .status.loading {
+                background: #1e3a5f;
+                color: #64b5f6;
+            }
+            .status.error {
+                background: #4a1515;
+                color: #ef9a9a;
+            }
+            .status.success {
+                background: #1b3d1f;
+                color: #81c784;
+            }
+        }
+
+        .schema-panel {
+            background: var(--color-bg-white);
+            border-radius: var(--border-radius);
+            padding: 20px;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+        }
+
+        .schema-panel h3 {
+            font-size: 14px;
+            color: var(--color-text);
+            margin-bottom: 15px;
+            padding-bottom: 10px;
+            border-bottom: 1px solid var(--color-border-light);
+        }
+
+        .schema-tables {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 20px;
+        }
+
+        .schema-table {
+            flex: 1;
+            min-width: 200px;
+            background: var(--color-bg);
+            border-radius: var(--border-radius);
+            padding: 12px;
+        }
+
+        .schema-table h4 {
+            font-size: 13px;
+            font-weight: 600;
+            margin-bottom: 8px;
+            color: var(--color-primary);
+        }
+
+        .schema-table ul {
+            list-style: none;
+            font-family: var(--font-mono);
+            font-size: 12px;
+        }
+
+        .schema-table li {
+            padding: 4px 0;
+            color: var(--color-text-light);
+        }
+
+        .column-name {
+            color: var(--color-text);
+        }
+
+        .column-type {
+            color: var(--color-text-muted);
+            font-size: 11px;
+        }
+
+        .info-note {
+            background: var(--color-bg);
+            padding: 12px 15px;
+            border-radius: var(--border-radius);
+            font-size: 13px;
+            color: var(--color-text-light);
+            margin-top: 15px;
+            border-left: 3px solid var(--color-primary);
+        }
+
+        .info-note code {
+            background: var(--color-bg-white);
+            padding: 2px 6px;
+            border-radius: 3px;
+            font-family: var(--font-mono);
+            font-size: 12px;
+        }
+
+        .loading-spinner {
+            display: inline-block;
+            width: 16px;
+            height: 16px;
+            border: 2px solid var(--color-border-light);
+            border-top-color: var(--color-primary);
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin-right: 8px;
+            vertical-align: middle;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+    </style>
+</head>
+<body>
+    <header class="app-header">
+        <div class="header-left">
+            <h1>DuckDB Astronaut Explorer</h1>
+            <span class="subtitle">Query NASA astronaut and mission data</span>
+        </div>
+        <nav>
+            <a href="https://marhar.github.io/">Home</a>
+            <a href="https://github.com/marhar/marhar.github.io/tree/master/apps/duckdb-explorer">Source</a>
+        </nav>
+    </header>
+
+    <div class="container">
+        <div id="init-status" class="status loading">
+            <span class="loading-spinner"></span>
+            Initializing DuckDB WASM and loading astronaut database...
+        </div>
+
+        <div id="schema-panel" class="schema-panel" style="display: none;">
+            <h3>Database Schema</h3>
+            <div id="schema-tables" class="schema-tables"></div>
+            <div class="info-note">
+                NASA astronaut and mission data loaded via
+                <a href="https://duckdb.org/docs/api/wasm/overview" target="_blank">DuckDB WASM</a>
+                from parquet files hosted on GitHub.
+            </div>
+        </div>
+
+        <div id="query-panel" class="query-panel" style="display: none;">
+            <h3>SQL Query</h3>
+            <textarea id="sql-input" placeholder="Enter your SQL query here...">SELECT * FROM astronauts LIMIT 10;</textarea>
+            <div class="button-row">
+                <button class="primary" id="run-btn">Run Query</button>
+                <button class="secondary" id="clear-btn">Clear</button>
+                <div class="preset-queries">
+                    <button data-query="astronauts">Astronauts</button>
+                    <button data-query="missions">Missions</button>
+                    <button data-query="international">International Crews</button>
+                    <button data-query="moonwalkers">Moonwalkers</button>
+                </div>
+            </div>
+        </div>
+
+        <div id="results-panel" class="results-panel" style="display: none;">
+            <div class="results-header">
+                <h3>Results</h3>
+                <span id="results-info" class="results-info"></span>
+            </div>
+            <div id="results-container" class="table-container"></div>
+        </div>
+    </div>
+
+    <script type="module">
+        import * as duckdb from 'https://cdn.jsdelivr.net/npm/@duckdb/duckdb-wasm@1.29.0/+esm';
+
+        const PRESET_QUERIES = {
+            astronauts: `SELECT * FROM astronauts LIMIT 20;`,
+            missions: `SELECT * FROM missions ORDER BY launch_date DESC LIMIT 20;`,
+            international: `SELECT m.name as mission, count(DISTINCT a.nationality) AS nationalities
+FROM missions m
+JOIN mission_crew mc ON m.mission_id = mc.mission_id
+JOIN astronauts a ON mc.astronaut_id = a.astronaut_id
+WHERE mc.primary_crew = true
+GROUP BY m.mission_id, m.name
+HAVING count(DISTINCT a.nationality) > 1
+ORDER BY nationalities DESC;`,
+            moonwalkers: `SELECT a.name, a.nationality, m.name as mission
+FROM astronauts a
+JOIN mission_crew mc ON a.astronaut_id = mc.astronaut_id
+JOIN missions m ON mc.mission_id = m.mission_id
+WHERE m.name LIKE 'Apollo%' AND mc.role LIKE '%Lunar Module%'
+ORDER BY m.launch_date;`
+        };
+
+        let db = null;
+        let conn = null;
+
+        const initStatus = document.getElementById('init-status');
+        const schemaPanel = document.getElementById('schema-panel');
+        const schemaTables = document.getElementById('schema-tables');
+        const queryPanel = document.getElementById('query-panel');
+        const resultsPanel = document.getElementById('results-panel');
+        const resultsContainer = document.getElementById('results-container');
+        const resultsInfo = document.getElementById('results-info');
+        const sqlInput = document.getElementById('sql-input');
+        const runBtn = document.getElementById('run-btn');
+        const clearBtn = document.getElementById('clear-btn');
+
+        const BASE_URL = 'https://raw.githubusercontent.com/marhar/frozen/main/space';
+
+        async function initDuckDB() {
+            try {
+                // Get bundles
+                const JSDELIVR_BUNDLES = duckdb.getJsDelivrBundles();
+
+                // Select bundle based on browser support
+                const bundle = await duckdb.selectBundle(JSDELIVR_BUNDLES);
+
+                const worker_url = URL.createObjectURL(
+                    new Blob([`importScripts("${bundle.mainWorker}");`], {type: 'text/javascript'})
+                );
+
+                // Instantiate the async version
+                const worker = new Worker(worker_url);
+                const logger = new duckdb.ConsoleLogger();
+                db = new duckdb.AsyncDuckDB(logger, worker);
+                await db.instantiate(bundle.mainModule, bundle.pthreadWorker);
+                URL.revokeObjectURL(worker_url);
+
+                // Create connection
+                conn = await db.connect();
+
+                // Load parquet files directly from GitHub
+                initStatus.innerHTML = '<span class="loading-spinner"></span>Loading astronaut data from parquet files...';
+
+                // Create tables from parquet files using UNION ALL for multi-part files
+                await conn.query(`
+                    CREATE TABLE astronauts AS
+                    SELECT * FROM read_parquet('${BASE_URL}/astronauts.p1.parquet')
+                    UNION ALL
+                    SELECT * FROM read_parquet('${BASE_URL}/astronauts.p2.parquet');
+                `);
+
+                await conn.query(`
+                    CREATE TABLE missions AS
+                    SELECT * FROM read_parquet('${BASE_URL}/missions.p1.parquet')
+                    UNION ALL
+                    SELECT * FROM read_parquet('${BASE_URL}/missions.p2.parquet');
+                `);
+
+                await conn.query(`
+                    CREATE TABLE mission_crew AS
+                    SELECT * FROM read_parquet('${BASE_URL}/mission_crew.p1.parquet')
+                    UNION ALL
+                    SELECT * FROM read_parquet('${BASE_URL}/mission_crew.p2.parquet')
+                    UNION ALL
+                    SELECT * FROM read_parquet('${BASE_URL}/mission_crew.p3.parquet')
+                    UNION ALL
+                    SELECT * FROM read_parquet('${BASE_URL}/mission_crew.p4.parquet');
+                `);
+
+                await conn.query(`
+                    CREATE TABLE spacecraft AS
+                    SELECT * FROM read_parquet('${BASE_URL}/spacecraft.p1.parquet');
+                `);
+
+                // Load schema
+                await loadSchema();
+
+                // Show UI
+                initStatus.className = 'status success';
+                initStatus.textContent = 'Database loaded successfully!';
+                setTimeout(() => {
+                    initStatus.style.display = 'none';
+                    schemaPanel.style.display = 'block';
+                    queryPanel.style.display = 'block';
+                }, 1000);
+
+            } catch (error) {
+                console.error('DuckDB initialization error:', error);
+                initStatus.className = 'status error';
+                initStatus.textContent = `Error: ${error.message}`;
+            }
+        }
+
+        async function loadSchema() {
+            try {
+                const result = await conn.query(`
+                    SELECT table_name, column_name, data_type
+                    FROM information_schema.columns
+                    WHERE table_catalog = 'memory' AND table_schema = 'main'
+                    ORDER BY table_name, ordinal_position;
+                `);
+
+                const schema = {};
+                const rows = result.toArray();
+
+                for (const row of rows) {
+                    const tableName = row.table_name;
+                    if (!schema[tableName]) {
+                        schema[tableName] = [];
+                    }
+                    schema[tableName].push({
+                        name: row.column_name,
+                        type: row.data_type
+                    });
+                }
+
+                schemaTables.innerHTML = '';
+                for (const [tableName, columns] of Object.entries(schema)) {
+                    const tableDiv = document.createElement('div');
+                    tableDiv.className = 'schema-table';
+                    tableDiv.innerHTML = `
+                        <h4>${tableName}</h4>
+                        <ul>
+                            ${columns.map(c => `<li><span class="column-name">${c.name}</span> <span class="column-type">${c.type}</span></li>`).join('')}
+                        </ul>
+                    `;
+                    schemaTables.appendChild(tableDiv);
+                }
+            } catch (error) {
+                console.error('Schema load error:', error);
+            }
+        }
+
+        async function runQuery() {
+            const sql = sqlInput.value.trim();
+            if (!sql) return;
+
+            resultsPanel.style.display = 'block';
+            resultsContainer.innerHTML = '<div class="status loading"><span class="loading-spinner"></span>Running query...</div>';
+            resultsInfo.textContent = '';
+
+            try {
+                const startTime = performance.now();
+                const result = await conn.query(sql);
+                const endTime = performance.now();
+
+                const rows = result.toArray();
+                const fields = result.schema.fields;
+                const columns = fields.map(f => f.name);
+
+                // Detect date/timestamp columns by type
+                const dateColumns = new Set();
+                for (const field of fields) {
+                    const typeStr = String(field.type);
+                    if (typeStr.includes('Date') || typeStr.includes('Timestamp')) {
+                        dateColumns.add(field.name);
+                    }
+                }
+
+                if (rows.length === 0) {
+                    resultsContainer.innerHTML = '<div class="status success">Query executed successfully. No rows returned.</div>';
+                    resultsInfo.textContent = `${(endTime - startTime).toFixed(1)}ms`;
+                    return;
+                }
+
+                // Format a value for display
+                function formatValue(value, colName) {
+                    if (value === null || value === undefined) {
+                        return '<em>NULL</em>';
+                    }
+                    // Handle BigInt (including dates which may come as BigInt)
+                    if (typeof value === 'bigint') {
+                        const numVal = Number(value);
+                        // Check if it looks like a timestamp in milliseconds
+                        if (Math.abs(numVal) > 1e10 && Math.abs(numVal) < 1e14) {
+                            try {
+                                const date = new Date(numVal);
+                                if (!isNaN(date.getTime())) {
+                                    return date.toISOString().split('T')[0];
+                                }
+                            } catch (e) {}
+                        }
+                        return value.toString();
+                    }
+                    // Handle numbers that look like timestamps in milliseconds
+                    if (typeof value === 'number' && Math.abs(value) > 1e10 && Math.abs(value) < 1e14) {
+                        try {
+                            const date = new Date(value);
+                            if (!isNaN(date.getTime())) {
+                                return date.toISOString().split('T')[0];
+                            }
+                        } catch (e) {}
+                        return String(value);
+                    }
+                    // Handle Date objects
+                    if (value instanceof Date) {
+                        return value.toISOString().split('T')[0];
+                    }
+                    return String(value);
+                }
+
+                // Build table
+                let html = '<table><thead><tr>';
+                for (const col of columns) {
+                    html += `<th>${col}</th>`;
+                }
+                html += '</tr></thead><tbody>';
+
+                for (const row of rows) {
+                    html += '<tr>';
+                    for (const col of columns) {
+                        const value = row[col];
+                        const displayValue = formatValue(value, col);
+                        html += `<td>${displayValue}</td>`;
+                    }
+                    html += '</tr>';
+                }
+                html += '</tbody></table>';
+
+                resultsContainer.innerHTML = html;
+                resultsInfo.textContent = `${rows.length} row${rows.length !== 1 ? 's' : ''} · ${(endTime - startTime).toFixed(1)}ms`;
+
+            } catch (error) {
+                resultsContainer.innerHTML = `<div class="status error">Error: ${error.message}</div>`;
+                resultsInfo.textContent = '';
+            }
+        }
+
+        // Event listeners
+        runBtn.addEventListener('click', runQuery);
+
+        clearBtn.addEventListener('click', () => {
+            sqlInput.value = '';
+            resultsPanel.style.display = 'none';
+        });
+
+        sqlInput.addEventListener('keydown', (e) => {
+            if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
+                runQuery();
+            }
+        });
+
+        document.querySelectorAll('.preset-queries button').forEach(btn => {
+            btn.addEventListener('click', () => {
+                const queryKey = btn.dataset.query;
+                if (PRESET_QUERIES[queryKey]) {
+                    sqlInput.value = PRESET_QUERIES[queryKey];
+                    runQuery();
+                }
+            });
+        });
+
+        // Initialize
+        initDuckDB();
+    </script>
+</body>
+</html>
