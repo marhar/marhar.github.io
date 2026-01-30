@@ -13,7 +13,8 @@ marhar.github.io/
 │   ├── stockreturns/
 │   ├── pid-demo/
 │   ├── geoavg/
-│   └── double-pendulum/
+│   ├── double-pendulum/
+│   └── duckdb-explorer/
 ├── blog/               # Blog posts
 ├── simple.min.css      # Site-wide CSS framework
 └── style.min.css       # Site-wide custom styles
@@ -61,3 +62,11 @@ Some apps have test suites:
 - Push to `master` branch deploys automatically via GitHub Pages
 - No build step - static files served directly
 - `.nojekyll` file disables Jekyll processing
+
+## DuckDB WASM Notes
+
+When using DuckDB WASM in browser apps:
+
+- **Community extensions not available**: Extensions like `ducklake` from the community repository don't have WASM builds. Workaround: load parquet files directly with `read_parquet('https://...')`.
+
+- **Date/timestamp handling**: DuckDB WASM returns dates as milliseconds since epoch (not days), often as BigInt. To detect and format timestamps, check if `Math.abs(value)` is between 1e10 and 1e14, then use `new Date(value)` directly.
