@@ -1,0 +1,35 @@
+⏺ Good work - all 15 exercises are complete and functionally correct. A few observations:           
+                                                                                                    
+  Minor Issues                                                                                      
+                                                                                                    
+  1.3 as_completed - The with block ends before the as_completed loop:                              
+      with ThreadPoolExecutor(max_workers=4) as executor:                                           
+          futures = [executor.submit(lambda x: x * x, n) for n in numbers]                          
+      for f in as_completed(futures):  # <-- outside the with                                       
+  This still works, but shutdown(wait=True) is called when exiting the with, so all futures are     
+  already complete before you iterate. You lose the "as they finish" behavior. Move the loop inside 
+  the with block.                                                                                   
+                                                                                                    
+  1.7 Semaphore - Same pattern - result collection is outside the with. Works, but unconventional.  
+                                                                                                    
+  1.15 Queue (async) - Producer and consumer run sequentially:                                      
+      await producer()                                                                              
+      await consumer()                                                                              
+  Producer finishes entirely before consumer starts. It works because the queue buffers, but doesn't
+   demonstrate concurrency. Use:                                                                    
+      await asyncio.gather(producer(), consumer())                                                  
+                                                                                                    
+  Style Differences (not wrong, just different)                                                     
+                                                                                                    
+  Globals vs closures - You use globals for shared state (1.6, 1.7, 1.14). I used nested functions  
+  with nonlocal. Both work; closures are more encapsulated for production code, globals are fine for
+   exercises.                                                                                       
+                                                                                                    
+  1.8 Event - Your approach of returning the count from each worker and summing is actually cleaner 
+  than my shared counter with lock. Nice.                                                           
+                                                                                                    
+  Fully Correct As-Is                                                                               
+                                                                                                    
+  1.1, 1.2, 1.4, 1.5, 1.6, 1.8, 1.9, 1.10, 1.11, 1.12, 1.13, 1.14                                   
+                                                                                                    
+  Want me to update the answers doc with any of your variations, or move on to Level 2?             
